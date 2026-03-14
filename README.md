@@ -43,7 +43,7 @@ The [CPU STREAM](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchm
 The [Multichase](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/NVIDIA/Multichase.py) benchmark is a memory latency benchmark designed to measure pointer-chasing latency in a system. Unlike traditional memory benchmarks like STREAM, which focus on memory bandwidth, Multichase is used to evaluate random memory access latency, which is crucial for workloads that rely on irregular memory access patterns, such as databases and graph processing.
 
 ### 8. End-to-end Inference Workloads
-To assess how different system components (as tested by the microbenchmarks) affect overall performance, we suggetsing running some [end-to-end workloads](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/NVIDIA/LLMBenchmark.py). The models we used for benchmarking are the current industry standards across various sizes: LLAMA 3 (8B, 70B, and 405B). The performance of the model inferencing (throughput) is measured in tokens per second, accounting for both processing input tokens and generating output tokens. The workloads run in a TensorRT-LLM environment. Users need huggingface credentials to download all the model weigths.
+To assess how different system components (as tested by the microbenchmarks) affect overall performance, we suggest running some [end-to-end workloads](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/NVIDIA/LLMBenchmark.py). The models we used for benchmarking are the current industry standards across various sizes: LLAMA 3 (8B, 70B, and 405B). The performance of the model inferencing (throughput) is measured in tokens per second, accounting for both processing input tokens and generating output tokens. The workloads run in a TensorRT-LLM environment. Users need huggingface credentials to download all the model weigths.
 
 ### 9. End-to-end Pretraining Workloads
 To assess the overall performance of GB200 and H200, we suggest running some [end-to-end pretrain workloads](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/NVIDIA/LLAMA3Run.py). The models we used for benchmarking are the current industry standards across various sizes: LLAMA 3 (3B, 8B). The performance of the model is measured in pretraining time per step. The workloads run in a Docker environment. Users need NeMo credentials to pull the container.
@@ -62,13 +62,13 @@ The performance measured is the data transfer bandwidth between GPUs using vario
 [High Bandwidth Memory](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/AMD/HBMBandwidth.py) (HBM) is designed to provide a significant boost in memory bandwidth for GPUs by handling vast amounts of data through vertical stacking of multiple layers of memory chips, connected by through-silicon vias.
 
 ### 4. Microbenchmark - TransferBench
-The [NV Bandwidth](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/AMD/TransferBench.py) benchmark measures the bandwidth achieved while transferring packets CPU-to-GPU and GPU-to-CPU.
+The [TransferBench](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/AMD/TransferBench.py) benchmark measures the bandwidth achieved while transferring packets CPU-to-GPU and GPU-to-CPU.
 
 ### 5. Microbenchmark - Flash Attention
 [FlashAttention](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/AMD/FlashAttention.py) is an algorithm to speed up attention and reduce the memory footprint for Natural Language Models—without any approximation. It is meant to speed up training and inference by reordering the attention computation and leveraging classical techniques (tiling, recomputation) to reduce memory usage from quadratic to linear in sequence length.
 
 ### 6. End-to-end Inference Workloads
-To assess how different system components (as tested by the microbenchmarks) affect overall performance, we suggetsing running some [end-to-end workloads](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/AMD/LLMBenchmark.py). The models we used for benchmarking are the current industry standards across various sizes: LLAMA 3 (8B, 70B, and 405B). The performance of the model inferencing (throughput) is measured in tokens per second, accounting for both processing input tokens and generating output tokens. The workloads run in a vLLM environment. Users need huggingface credentials to download all the model weigths. 
+To assess how different system components (as tested by the microbenchmarks) affect overall performance, we suggest running some [end-to-end workloads](https://github.com/Azure/AI-benchmarking-guide/blob/main/Benchmarks/AMD/LLMBenchmark.py). The models we used for benchmarking are the current industry standards across various sizes: LLAMA 3 (8B, 70B, and 405B). The performance of the model inferencing (throughput) is measured in tokens per second, accounting for both processing input tokens and generating output tokens. The workloads run in a vLLM environment. Users need huggingface credentials to download all the model weigths. 
 
 
 # HOW TO RUN THE BENCHMARKS
@@ -117,7 +117,7 @@ LLAMA3 3B Pretrain Workload: `llama_3b_pretrain`
 
 ### AMD
 Usage: `python3 AMD_runner.py [arg]`\
-   or: `python3 AMD_runner.py [arg1] [arg2]` ... to run more than one test e.g `python3 AMD_runner.py hbm nccl`\
+   or: `python3 AMD_runner.py [arg1] [arg2]` ... to run more than one test e.g `python3 AMD_runner.py hbm rccl`\
 Arguments are as follows, and are case insensitive:\
 All tests:  `all`\
 HipBLAS GEMM:  `gemm`\
