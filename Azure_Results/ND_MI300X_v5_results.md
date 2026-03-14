@@ -75,7 +75,7 @@ The performance (in TFLOPS), in table below, represents the performance for a he
 
 ## RCCL Bandwidth
 
-The values (in GB/s), in the table 6 and figure 5 below, are the bus bandwidth values obtained from the RCCL AllReduce (NVLS algorithm) tests in-place operations, varying from 1KB to 8GB of data.
+The values (in GB/s) are the bus bandwidth values obtained from the RCCL AllReduce (NVLS algorithm) tests in-place operations, varying from 1KB to 8GB of data.
 
 | Message Size (Bytes) | ND MI300X v5 (GB/s) |
 | -------------------- | ----------------- |
