@@ -19,7 +19,7 @@ class TransferBench:
             clone_cmd = "git clone https://github.com/ROCm/TransferBench.git " + self.dir_path + "/TransferBench"
             results = subprocess.run(clone_cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             tools.write_log(tools.check_error(results))
-            results = subprocess.run("mkdir " + self.dir_path + "/TransferBench/build && cd" + self.dir_path + "/TransferBench/build", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            results = subprocess.run("mkdir " + self.dir_path + "/TransferBench/build && cd " + self.dir_path + "/TransferBench/build", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             tools.write_log(tools.check_error(results))
 
             results = subprocess.run("cd " + self.dir_path + "/TransferBench/build && CXX=/opt/rocm/bin/hipcc cmake .. && make", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
