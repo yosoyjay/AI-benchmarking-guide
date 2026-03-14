@@ -24,8 +24,8 @@ class NCCLBandwidth:
             tools.write_log(tools.check_error(results))
             os.chdir(current)
 
-        results = subprocess.run('export NCCL_HOME=' + current + '/nccl/build', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        results = subprocess.run('export LD_LIBRARY_PATH=' + current + '/nccl/build/lib:$LD_LIBRARY_PATH', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        os.environ['NCCL_HOME'] = current + '/nccl/build'
+        os.environ['LD_LIBRARY_PATH'] = current + '/nccl/build/lib:' + os.environ.get('LD_LIBRARY_PATH', '')
 
         path ='nccl-tests'
         isdir = os.path.isdir(path)
