@@ -1,4 +1,18 @@
 {
+    "HBMBandwidth": {
+        "inputs": {
+            "num_runs": 5,
+            "interval": 10
+        }
+    },
+
+    "CPUStream": {
+        "inputs": {
+            "num_runs": 4,
+            "interval": 4
+        }
+    },
+
     "GEMMCublasLt": {
         "datatype": "fp8e4m3"
     },
