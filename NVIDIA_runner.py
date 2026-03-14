@@ -102,7 +102,7 @@ def run_LLAMA3Pretrain(model_size="8b"):
 sku_name = get_system_specs()
 arguments = []
 match = False
-for arg in sys.argv:
+for arg in sys.argv[1:]:
     arguments.append(arg.lower())
 
 if ("gemm" in arguments):
