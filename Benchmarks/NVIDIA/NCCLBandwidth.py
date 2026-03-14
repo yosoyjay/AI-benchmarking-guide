@@ -1,8 +1,6 @@
 import json
 import os
-import csv
 import subprocess
-import csv
 from Infra import tools
 from prettytable import PrettyTable
 

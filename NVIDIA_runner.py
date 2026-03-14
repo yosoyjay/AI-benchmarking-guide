@@ -1,7 +1,6 @@
 import os
 import sys
 import subprocess
-import torch
 
 from Benchmarks.NVIDIA import GEMMCublasLt as gemm
 from Benchmarks.NVIDIA import HBMBandwidth as HBM

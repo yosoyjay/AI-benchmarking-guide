@@ -3,7 +3,6 @@ import os
 import json
 import csv
 from prettytable import PrettyTable
-import json
 from Infra import tools
 
 class LLMBenchmark:

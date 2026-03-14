@@ -3,7 +3,6 @@ from Infra import tools
 import subprocess
 import json
 from prettytable import PrettyTable
-import json
 from huggingface_hub import snapshot_download
 
 class LLMBenchmark:

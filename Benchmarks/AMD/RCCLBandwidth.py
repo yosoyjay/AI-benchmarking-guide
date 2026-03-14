@@ -2,7 +2,6 @@ import json
 import docker
 import os
 import csv
-import csv
 from prettytable import PrettyTable
 from Infra import tools
 

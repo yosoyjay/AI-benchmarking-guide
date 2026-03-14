@@ -2,7 +2,6 @@ import json
 import os
 import statistics
 import time
-import csv
 from prettytable import PrettyTable
 import subprocess
 from Infra import tools
