@@ -26,7 +26,7 @@ class CPUStream:
     def parse_json(self, config):
         return config["inputs"]["num_runs"], config["inputs"]["interval"]
 
-    def config_conversion(self, config) -> tuple[list, list, list]:
+    def config_conversion(self, config) -> tuple[int, int]:
         return self.parse_json(config)
 
     def build(self):
