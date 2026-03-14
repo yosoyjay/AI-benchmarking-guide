@@ -21,23 +21,44 @@ tools.create_dir("Outputs")
 
 def get_system_specs():
     results = subprocess.run(["nvidia-smi", "--query-gpu=gpu_name,vbios_version,driver_version,memory.total", "--format=csv"], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    output = results.stdout.decode('utf-8').split('\n')[1].split(",")
+    if results.returncode != 0:
+        print("ERROR: nvidia-smi failed. Is an NVIDIA GPU present and driver installed?")
+        sys.exit(1)
+    lines = results.stdout.decode('utf-8').split('\n')
+    if len(lines) < 2 or not lines[1].strip():
+        print("ERROR: nvidia-smi returned no GPU data")
+        sys.exit(1)
+    output = lines[1].split(",")
     if not os.path.exists(current +  "/Outputs/" + host_name + "_summary.md"):
         table = PrettyTable([" ", output[0]])
-        table.add_row(["VBIOS", output[1]])
-        table.add_row(["driver version", output[2]])
-        table.add_row(["GPU memory capacity", output[3]])
-        
+        if len(output) > 1:
+            table.add_row(["VBIOS", output[1]])
+        if len(output) > 2:
+            table.add_row(["driver version", output[2]])
+        if len(output) > 3:
+            table.add_row(["GPU memory capacity", output[3]])
+
         results = subprocess.run("nvcc --version | grep release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        cuda_version = results.stdout.decode('utf-8').split(",")[1].strip().split(" ")[1]
+        if results.returncode == 0 and results.stdout:
+            parts = results.stdout.decode('utf-8').split(",")
+            cuda_version = parts[1].strip().split(" ")[1] if len(parts) > 1 else "unknown"
+        else:
+            cuda_version = "unknown"
         table.add_row(["CUDA version", cuda_version])
-    
+
         if output[0].strip() != "NVIDIA Graphics Device" or "GB200" in output[0]:
             results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            ubuntu = results.stdout.decode('utf-8').strip().split("\t")[1]
+            if results.returncode == 0 and results.stdout:
+                parts = results.stdout.decode('utf-8').strip().split("\t")
+                ubuntu = parts[1] if len(parts) > 1 else "unknown"
+            else:
+                ubuntu = "unknown"
             table.add_row(["ubuntu version", ubuntu])
             results = subprocess.run("pip list | grep 'torch '", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            pyt = results.stdout.decode('utf-8').strip().split(" ")[-1]
+            if results.returncode == 0 and results.stdout:
+                pyt = results.stdout.decode('utf-8').strip().split(" ")[-1]
+            else:
+                pyt = "unknown"
             table.add_row(["pytorch", pyt])
         print(table)
         tools.export_markdown(output[0].strip() + " Benchmarking Guide", "", table)

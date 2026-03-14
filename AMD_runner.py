@@ -13,6 +13,29 @@ from Benchmarks.AMD import LLMBenchmark as llmb
 current = os.getcwd()
 tools.create_dir("Outputs")
 
+_SKU_MAP = {
+    "MI300X": "ND_MI300X_v5",
+    "MI300": "ND_MI300X_v5",
+    "MI250X": "ND_MI250X_v4",
+    "MI250": "ND_MI250_v4",
+}
+
+def _detect_sku():
+    try:
+        results = subprocess.run(
+            "rocminfo | grep 'Marketing Name'",
+            shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        if results.returncode == 0 and results.stdout:
+            name = results.stdout.decode("utf-8").strip()
+            for gpu_name, sku in _SKU_MAP.items():
+                if gpu_name in name:
+                    return sku
+    except Exception:
+        pass
+    print("Warning: could not detect AMD GPU SKU, falling back to ND_MI300X_v5")
+    return "ND_MI300X_v5"
+
 def get_system_specs():
     with open("Outputs/system_specs.txt", "w") as file:
 
@@ -33,7 +56,7 @@ def get_system_specs():
 
         results = subprocess.run("grep 'cores\|model\|microcode' /proc/cpuinfo | grep cores", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         file.write(results.stdout.decode('utf-8').split("\n")[0])
-    return "ND_MI300X_v5"
+    return _detect_sku()
 
 def run_TransferBench():
     test = TB.TransferBench("config.json", current, machine_name)
