@@ -12,6 +12,7 @@ class CPUStream:
         self.machine_name = machine
         config = self.get_config(path)
         self.num_runs, self.interval = self.config_conversion(config)
+        self.cpu_count = os.cpu_count() or 128
         self.buffer = []
 
     def get_config(self, path: str):
@@ -74,7 +75,7 @@ class CPUStream:
         buffer = []
         while runs_executed < self.num_runs:
             results = subprocess.run(
-                "OMP_NUM_THREADS=128 OMP_PROC_BIND=spread taskset -c 0-127 ./omp-stream", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+                f"OMP_NUM_THREADS={self.cpu_count} OMP_PROC_BIND=spread taskset -c 0-{self.cpu_count - 1} ./omp-stream", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
             tools.write_log(tools.check_error(results))
             log = results.stdout.decode("utf-8").strip().split("\n")[10:15]
