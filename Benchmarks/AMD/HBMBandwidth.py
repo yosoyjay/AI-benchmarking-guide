@@ -17,9 +17,8 @@ class HBMBandwidth:
         self.buffer = []
 
     def get_config(self, path: str):
-        file = open(path)
-        data = json.load(file)
-        file.close()
+        with open(path) as file:
+            data = json.load(file)
         try:
             return data[self.name]
         except KeyError:
