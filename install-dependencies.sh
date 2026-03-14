@@ -84,7 +84,7 @@ if [[ "$platform" == "AMD" ]]; then
 
 elif [[ "$platform" == "NVIDIA" ]]; then
     gpu_output=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
-    if echo "$gpu_output" | grep -qE "GB[0-9]"; then
+    if echo "$gpu_output" | grep -q "GB"; then
         # only install GB200 & GB300 requirements
         $pip install torch prettytable cmake huggingface_hub numpy matplotlib
     else
