@@ -10,9 +10,8 @@ class CPUStream:
     def __init__(self, path:str, machine: str):
         self.name = "CPUStream"
         self.machine_name = machine
-        
-        self.num_runs, self.interval = 4, 4
-
+        config = self.get_config(path)
+        self.num_runs, self.interval = self.config_conversion(config)
         self.buffer = []
 
     def get_config(self, path: str):
