@@ -105,7 +105,7 @@ class LLAMA3Pretraining:
 
 
     def run(self):
-        log_path = f"Outputs/log.txt" # log to log file
+        log_path = f"Outputs/llama3_docker_output.txt" # log to separate file
         tools.write_log(f"Pulling and launching NeMo container for {self.machine_name}.") # write to log file
         print(f"Pulling and launching NeMo docker container for {self.machine_name} and logging at 'Outputs/log.txt'.") # also let the user know where log is
 
@@ -129,7 +129,7 @@ class LLAMA3Pretraining:
         ]
 
         # launch command and write to log file (this shows all info about epoch, training time, etc.)
-        with open("Outputs/log.txt", "w") as file:
+        with open("Outputs/llama3_docker_output.txt", "w") as file:
             subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
 
         # now plot the results
