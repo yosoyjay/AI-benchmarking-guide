@@ -46,7 +46,7 @@ class LLAMA3Pretraining:
                 if np.std(window) < std_thresh:
                     consistent += 1
                     if consistent >= min_windows:
-                        start_idx = i - (min_windows - 1) * window_size
+                        start_idx = i - (min_windows - 1)
                         break
                 else:
                     consistent = 0
