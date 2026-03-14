@@ -19,9 +19,13 @@ def write_log(message: str, filename: str = pwd):
         file.write(log_entry)
 
 def check_error(results):
-    if results.stderr:
-        return results.stderr.decode("utf-8")
-    return results.stdout.decode("utf-8")
+    stdout = results.stdout.decode("utf-8") if results.stdout else ""
+    stderr = results.stderr.decode("utf-8") if results.stderr else ""
+    if results.returncode != 0:
+        return f"[ERROR] returncode={results.returncode}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+    if stderr:
+        return f"{stdout}\n[stderr]\n{stderr}"
+    return stdout
 
 def get_os_version():
     results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -30,7 +34,7 @@ def get_os_version():
 
 def get_hostname():
     results = subprocess.run(["hostname"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if results.stderr:
+    if results.returncode != 0:
         return ""
     return results.stdout.decode("utf-8").strip()
 
