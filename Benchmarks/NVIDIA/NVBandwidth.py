@@ -5,6 +5,17 @@ from Infra import tools
 from prettytable import PrettyTable
 
 class NVBandwidth:
+    TEST_NAMES = [
+        "device_to_host_memcpy_ce",
+        "host_to_device_memcpy_ce",
+        "device_to_device_bidirectional_memcpy_read_ce",
+    ]
+    LABELS = [
+        "Device to Host memcpy",
+        "Host to Device memcpy",
+        "Device to Device Bidirectional memcpy Total",
+    ]
+
     def __init__(self, path:str, machine: str):
         self.name='NVBandwidth'
         self.machine_name = machine
@@ -35,37 +46,70 @@ class NVBandwidth:
         log = results.stdout.decode('utf-8')
         os.chdir(current)
 
-        item = "\n".join(log[log.find("device_to_host_memcpy_ce"):].strip().splitlines()[:-2])
-        self.format_output(item)
+        self.format_output(log)
         os.chdir(current)
-        
-    def format_output(self, text):
-        tables, current = [], []
+
+    @staticmethod
+    def _parse_sections(text):
+        sections = {}
+        current_name = None
+        current_lines = []
         for line in text.splitlines():
-            if not line.strip():
-                if current:
-                    tables.append(current)
-                    current = []
+            stripped = line.strip()
+            # Check if this line is a test name header
+            found = None
+            for name in NVBandwidth.TEST_NAMES:
+                if stripped == name:
+                    found = name
+                    break
+            if found:
+                if current_name is not None:
+                    sections[current_name] = "\n".join(current_lines)
+                current_name = found
+                current_lines = []
+            elif current_name is not None:
+                current_lines.append(line)
+        if current_name is not None:
+            sections[current_name] = "\n".join(current_lines)
+        return sections
+
+    @staticmethod
+    def _extract_summary_table(section_text):
+        table_rows = []
+        for line in section_text.strip().splitlines():
+            stripped = line.strip()
+            if not stripped:
+                if table_rows:
+                    break
                 continue
-            if 'memcpy' in line:
+            if 'memcpy' in stripped or stripped.startswith('running') or stripped.startswith('SUM'):
                 continue
-            row = [x.strip() for x in line.split() if x.strip()]
-            current.append([int(float(x)) if x.replace('.', '', 1).isdigit() else "-" for x in row])
-        if current:
-            tables.append(current)
-        result = [tables[0], tables[1], tables[4]]
-        labels = ["Device to Host memcpy", "Host to Device memcpy", "Device to Device Bidirectional memcpy Total"]
-        for i in range(len(result)):
-            result[i][0].insert(0, " ")
-            t = PrettyTable(result[i][0])
-            for j in range(1, len(result[i])):
-                t.add_row(result[i][j])
-            print(labels[i])
+            tokens = stripped.split()
+            row = [int(float(x)) if x.replace('.', '', 1).isdigit() else x for x in tokens]
+            table_rows.append(row)
+        return table_rows
+
+    def format_output(self, text):
+        sections = self._parse_sections(text)
+        results = []
+        for name in self.TEST_NAMES:
+            if name not in sections:
+                print(f"Warning: section '{name}' not found in nvbandwidth output")
+                continue
+            table = self._extract_summary_table(sections[name])
+            results.append(table)
+
+        for i, table in enumerate(results):
+            if not table:
+                continue
+            table[0].insert(0, " ")
+            t = PrettyTable(table[0])
+            for j in range(1, len(table)):
+                t.add_row(table[j])
+            print(self.LABELS[i])
             print(t)
 
             if i == 0:
-                tools.export_markdown("NV Bandwidth", labels[i], t)
+                tools.export_markdown("NV Bandwidth", self.LABELS[i], t)
             else:
-                tools.export_markdown(None, labels[i], t)
-                
-            
+                tools.export_markdown(None, self.LABELS[i], t)
