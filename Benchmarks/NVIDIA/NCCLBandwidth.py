@@ -63,5 +63,5 @@ class NCCLBandwidth:
         for i in range(len(buffer)):
             table1.add_column(runs[i], buffer[i])
         print(table1)
-        tools.export_markdown("NCCL Bandwidth", "The values (in GB/s) are the bus bandwidth values obtained from the NCCL AllReduce (Ring algorithm) tests in-place operations, varying from 1KB to 8GB of data.", table1)
+        tools.export_markdown("NCCL Bandwidth", f"The values (in GB/s) are the bus bandwidth values obtained from the NCCL AllReduce ({self.algo} algorithm) tests in-place operations, varying from 1KB to 8GB of data.", table1)
         os.chdir(current)
