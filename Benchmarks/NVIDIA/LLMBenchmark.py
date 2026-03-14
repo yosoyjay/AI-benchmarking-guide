@@ -30,7 +30,7 @@ class LLMBenchmark:
         
         # Clone TensorRT-LLM repo
         if not os.path.exists(os.path.join(self.dir_path, 'TensorRT-LLM')):
-            print("Cloning TensorRT-LLM reopsitory from https://github.com/NVIDIA/TensorRT-LLM.git")
+            print("Cloning TensorRT-LLM repository from https://github.com/NVIDIA/TensorRT-LLM.git")
             i4 = subprocess.run("git clone https://github.com/NVIDIA/TensorRT-LLM.git && cd TensorRT-LLM && git checkout v0.18.2", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             tools.write_log(tools.check_error(i4))
 
