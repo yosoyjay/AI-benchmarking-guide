@@ -35,7 +35,7 @@ class Multichase:
         current = os.getcwd()
         print("Running Multichase...")
 
-        results = subprocess.run("cd Benchmarks/NVIDIA && sudo chmod 777 run_multichase.sh && ./run_multichase.sh",shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        results = subprocess.run("cd Benchmarks/NVIDIA && sudo chmod 755 run_multichase.sh && ./run_multichase.sh",shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         tools.write_log(tools.check_error(results))
         print(results.stdout.decode("utf-8"))
         tools.export_markdown("Multichase", results.stdout.decode("utf-8"), None)
