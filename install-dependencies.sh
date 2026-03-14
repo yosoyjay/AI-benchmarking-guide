@@ -80,7 +80,7 @@ if [[ "$platform" == "AMD" ]]; then
     python3 setup.py install
     popd > /dev/null
 
-    $pip install $(grep -v tensorrt requirements_main.txt)
+    grep -v tensorrt requirements_main.txt | xargs -r $pip install
 
 elif [[ "$platform" == "NVIDIA" ]]; then
     gpu_output=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
@@ -89,7 +89,7 @@ elif [[ "$platform" == "NVIDIA" ]]; then
         $pip install torch prettytable cmake huggingface_hub numpy matplotlib
     else
         $pip install -r requirements_main.txt
-        $pip install $(cat requirements_flashattn.txt) --no-build-isolation
+        xargs -r $pip install --no-build-isolation < requirements_flashattn.txt
         $pip install -r requirements_torch_nvidia.txt  
     fi
 fi
