@@ -64,7 +64,6 @@ class HBMBandwidth:
         mean = statistics.mean(results)/1000000
         maximum = max(results)/1000000
         minimum = min(results)/1000000
-        stdev = statistics.stdev(results)/1000
         return [round(minimum, 2), round(maximum, 2), round(mean, 2)]
 
     def save_results(self):
