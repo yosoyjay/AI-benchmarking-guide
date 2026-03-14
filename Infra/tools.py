@@ -8,9 +8,7 @@ curr = os.getcwd()
 def create_dir(name: str):
     current = os.getcwd()
     outdir = os.path.join(str(current), name)
-    isdir = os.path.isdir(outdir)
-    if not isdir:
-        os.mkdir(outdir)
+    os.makedirs(outdir, exist_ok=True)
     return outdir
 
 def write_log(message: str, filename: str = pwd):
