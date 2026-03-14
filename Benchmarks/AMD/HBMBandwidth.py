@@ -48,10 +48,7 @@ class HBMBandwidth:
             run_cmd = "sudo " + self.dir_path + "/BabelStream/build/hip-stream"
             results = subprocess.run(run_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             tools.write_log(tools.check_error(results))
-            log = results.stdout.decode("utf-8").strip().split("\n")[13:18]
-            for i in range(len(log)):
-                temp = log[i].split()
-                log[i] = [temp[0], temp[1]]
+            log = tools.parse_babelstream_output(results.stdout.decode("utf-8"))
             buffer.append(log)
 
             runs_executed += 1

@@ -78,10 +78,7 @@ class CPUStream:
                 f"OMP_NUM_THREADS={self.cpu_count} OMP_PROC_BIND=spread taskset -c 0-{self.cpu_count - 1} ./omp-stream", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
             )
             tools.write_log(tools.check_error(results))
-            log = results.stdout.decode("utf-8").strip().split("\n")[10:15]
-            for i in range(len(log)):
-                temp = log[i].split()
-                log[i] = [temp[0], temp[1]]
+            log = tools.parse_babelstream_output(results.stdout.decode("utf-8"))
             buffer.append(log)
             runs_executed += 1
             time.sleep(int(self.interval))

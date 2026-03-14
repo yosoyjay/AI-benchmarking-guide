@@ -89,6 +89,16 @@ def post_benchmark_entry(entry, url):
         "-H", "Content-Type: application/json",
         "-d", json_data
     ]
-    
+
     result = subprocess.run(curl_command, capture_output=True, text=True)
     return result.stdout, result.stderr
+
+BABELSTREAM_OPS = ("Copy", "Mul", "Add", "Triad", "Dot")
+
+def parse_babelstream_output(raw_output):
+    results = []
+    for line in raw_output.strip().split("\n"):
+        tokens = line.split()
+        if tokens and tokens[0] in BABELSTREAM_OPS:
+            results.append([tokens[0], tokens[1]])
+    return results
