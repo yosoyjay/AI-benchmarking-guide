@@ -51,7 +51,7 @@ class FlashAttention:
 
         self.create_container()
         print("Running Flash Attention...")
-        res = self.container.exec_run(f'bash -c "python3 {self.dir_path}/flash-attention/benchmarks/benchmark_flash_attention.py | grep -A 2 "batch_size=2, seqlen=8192 ###""')
+        res = self.container.exec_run(f"bash -c 'python3 {self.dir_path}/flash-attention/benchmarks/benchmark_flash_attention.py | grep -A 2 \"batch_size=2, seqlen=8192 ###\"'")
         tools.write_log(res.output.decode('utf-8'))
         self.container.kill()
 
