@@ -1,7 +1,6 @@
 """GEMM HipBLASLt benchmark (AMD ROCm, Docker-based)."""
 
 import logging
-import os
 
 from prettytable import PrettyTable
 
@@ -10,9 +9,7 @@ from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
 
-_HIPBLAS_IMAGE = "rocm/vllm-dev:main"
-_HIPBLASLT_REPO = "https://github.com/ROCm/hipBLASLt"
-_HIPBLASLT_COMMIT = "a11ccf64efcd818106dbe37768f69dfcc0a7ff22"
+_HIPBLAS_IMAGE = "ai-bench/amd-hipblas:latest"
 
 _M_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
 _N_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
@@ -89,46 +86,11 @@ _DATATYPE = "FP8"
 _WARMUP = 10000
 
 
-def _build(container, work_dir):
-    """Clone hipBLASLt, install deps, and build inside the container."""
-    repo_dir = os.path.join(work_dir, "hipBLASLt")
-    if not os.path.isdir(repo_dir):
-        res = container.exec_run(
-            ["git", "clone", _HIPBLASLT_REPO, repo_dir],
-            stderr=True,
-        )
-        tools.write_log(res.output.decode("utf-8"))
-
-        res = container.exec_run(
-            ["git", "checkout", _HIPBLASLT_COMMIT],
-            workdir=repo_dir,
-            stderr=True,
-        )
-        if res.exit_code != 0:
-            tools.write_log(res.output.decode("utf-8"))
-            return
-
-        res = container.exec_run(["sudo", "apt-get", "-y", "update"], stderr=True)
-        tools.write_log(res.output.decode("utf-8"))
-
-        res = container.exec_run(["sudo", "apt", "-y", "install", "llvm-dev"], stderr=True)
-        tools.write_log(res.output.decode("utf-8"))
-
-        logger.info("Building hipBLAS Library...")
-        res = container.exec_run(
-            ["/bin/sh", "-c", f"cd {repo_dir} && ./install.sh -dc -a gfx942"],
-            stderr=True,
-        )
-        tools.write_log(res.output.decode("utf-8"))
-
-
 def run(work_dir, machine_name):
-    """Clone, build, run HipBLASLt GEMM inside Docker, parse and report."""
+    """Run HipBLASLt GEMM inside Docker, parse and report."""
     with AmdContainer(_HIPBLAS_IMAGE, work_dir, entrypoint="/bin/bash") as container:
-        _build(container, work_dir)
-
         logger.info("Running HipBLAS...")
-        bench_bin = os.path.join(work_dir, "hipBLASLt", "build", "release", "clients", "staging", "hipblaslt-bench")
+        bench_bin = "/opt/hipBLASLt/build/release/clients/staging/hipblaslt-bench"
         rows = []
         for m, n, k in zip(_M_DIMS, _N_DIMS, _K_DIMS):
             yaml_cfg = _build_hipblas_yaml(m, n, k)

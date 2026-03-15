@@ -82,10 +82,7 @@ class TestBuildTable:
 
 class TestModuleConstants:
     def test_image_constant(self):
-        assert hasattr(gemm_hipblas_lt, "_HIPBLAS_IMAGE")
-
-    def test_repo_constant(self):
-        assert "hipBLASLt" in gemm_hipblas_lt._HIPBLASLT_REPO
+        assert "amd-hipblas" in gemm_hipblas_lt._HIPBLAS_IMAGE
 
     def test_run_is_callable(self):
         assert callable(gemm_hipblas_lt.run)
