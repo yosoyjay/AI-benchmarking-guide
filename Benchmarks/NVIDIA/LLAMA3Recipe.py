@@ -21,7 +21,14 @@ args = parse_args()
 
 def load_config():
     with open("config.json") as f:
-        return json.load(f)["LLAMA3Pretraining"]["model"][args.machine_name][args.model_size]
+        data = json.load(f)
+    try:
+        return data["LLAMA3Pretraining"]["model"][args.machine_name][args.model_size]
+    except KeyError as e:
+        raise KeyError(
+            f"config.json missing key {e} in path "
+            f"LLAMA3Pretraining.model.{args.machine_name}.{args.model_size}"
+        )
 
 
 def configure_recipe(cfg, nodes=1):
