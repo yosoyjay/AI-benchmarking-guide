@@ -130,9 +130,7 @@ def run_FIO(machine_name, current):
 
 
 def run_HBMBandwidth(machine_name, current):
-    test = HBM.HBMBandwidth("config.json", current, machine_name)
-    test.build()
-    test.run()
+    HBM.run(work_dir=current, machine_name=machine_name)
 
 
 def run_LLMBenchmark(machine_name, current):
