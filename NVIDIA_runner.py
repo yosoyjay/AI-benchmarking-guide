@@ -57,7 +57,8 @@ def get_system_specs():
             table.add_row(["ubuntu version", ubuntu])
             results = subprocess.run("pip list | grep 'torch '", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             if results.returncode == 0 and results.stdout:
-                pyt = results.stdout.decode('utf-8').strip().split(" ")[-1]
+                parts = results.stdout.decode('utf-8').strip().split()
+                pyt = parts[-1] if parts else "unknown"
             else:
                 pyt = "unknown"
             table.add_row(["pytorch", pyt])
@@ -219,7 +220,7 @@ if ("all" in arguments):
     match = True
     for _name, _fn in [
         ("CublasLt", run_CublasLt),
-        ("NCCLBandwidth", lambda: run_NCCLBandwidth()),
+        ("NCCLBandwidth", run_NCCLBandwidth),
         ("Multichase", run_Multichase),
         ("CPUStream", run_CPUStream),
         ("HBMBandwidth", run_HBMBandwidth),
