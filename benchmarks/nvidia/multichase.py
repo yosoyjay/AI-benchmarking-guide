@@ -11,6 +11,45 @@ _MULTICHASE_REPO = "https://github.com/google/multichase"
 
 
 # ---------------------------------------------------------------------------
+# Pure helpers -- no side effects, fully testable
+# ---------------------------------------------------------------------------
+
+
+def parse_multichase_output(text):
+    """Parse tabular multichase output into node names and row dicts.
+
+    Expects a header like ``CPU  NODE0  NODE1 ...`` followed by data rows
+    where the first field is the CPU id and the rest are latency floats.
+
+    Returns ``(node_names, rows)`` where *node_names* is e.g.
+    ``["NODE0", "NODE1"]`` and each row is
+    ``{"cpu": "0", "NODE0": 3.2, "NODE1": 5.1}``.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return [], []
+
+    header_fields = lines[0].split()
+    if not header_fields or header_fields[0] != "CPU":
+        return [], []
+
+    node_names = header_fields[1:]
+    rows = []
+    for line in lines[1:]:
+        fields = line.split()
+        if len(fields) != len(header_fields):
+            continue
+        row = {"cpu": fields[0]}
+        for name, val in zip(node_names, fields[1:]):
+            try:
+                row[name] = float(val)
+            except ValueError:
+                continue
+        rows.append(row)
+    return node_names, rows
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
