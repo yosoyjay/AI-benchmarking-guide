@@ -105,9 +105,7 @@ def run_FlashAttention(sku_name):
 
 
 def run_Multichase(sku_name):
-    test = Multichase.Multichase("config.json", sku_name)
-    test.build()
-    test.run()
+    Multichase.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_CPUStream(sku_name):

@@ -1,33 +1,36 @@
+"""Multichase memory latency benchmark (NVIDIA)."""
+
 import logging
 import os
+
 from infra import tools
-from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
 _MULTICHASE_REPO = "https://github.com/google/multichase"
 
-class Multichase:
-    def __init__(self, path:str, machine: str):
-        self.name = "Multichase"
-        self.machine_name = machine
-    
-    def build(self):
-        current = os.getcwd()
-        path = "multichase"
-        isdir = os.path.isdir(path)
-        if not isdir:
-            results = tools.run_cmd(
-                ["git", "clone", _MULTICHASE_REPO,  path],
-            )
 
-            build_path = os.path.join(current, "multichase")
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
 
-            results = tools.run_cmd("make", shell=True, cwd=build_path)
 
-    def run(self):
-        logger.info("Running Multichase...")
+def _build(work_dir):
+    """Clone and build multichase."""
+    repo_dir = os.path.join(work_dir, "multichase")
+    if not os.path.isdir(repo_dir):
+        tools.run_cmd(["git", "clone", _MULTICHASE_REPO, "multichase"], cwd=work_dir)
+        tools.run_cmd(["make"], cwd=repo_dir)
 
-        results = tools.run_cmd("sudo chmod 755 run_multichase.sh && ./run_multichase.sh", shell=True, cwd="benchmarks/nvidia")
-        print(results.stdout.decode("utf-8"))
-        tools.export_markdown("Multichase", results.stdout.decode("utf-8"), None)
+
+def run(work_dir, machine_name):
+    """Clone, build, run multichase, and report raw output."""
+    _build(work_dir)
+
+    logger.info("Running Multichase...")
+    script_dir = os.path.join(work_dir, "benchmarks", "nvidia")
+    tools.run_cmd(["chmod", "755", "run_multichase.sh"], cwd=script_dir)
+    result = tools.run_cmd(["./run_multichase.sh"], cwd=script_dir)
+    output = result.stdout.decode("utf-8")
+    print(output)
+    tools.export_markdown("Multichase", output, None)
