@@ -25,10 +25,10 @@ def load_config():
         return json.load(f)["LLAMA3Pretraining"]["model"][args.machine_name][args.model_size]
 
 
-def configure_recipe(cfg, nodes=1, gpus_per_node=4):
+def configure_recipe(cfg, nodes=1):
     precision = cfg.get("precision", "bf16").lower()
     plugin = bf16_with_fp8_mixed() if precision == "bf16" else fp16_with_fp8_mixed()
-    gpus_per_node = 8 if args.machine_name == "H200" else 4 # updates gpus per node if H200
+    gpus_per_node = 8 if args.machine_name == "H200" else 4
 
     model_size = args.model_size
     if model_size == "3b":
@@ -79,7 +79,7 @@ def configure_recipe(cfg, nodes=1, gpus_per_node=4):
     return recipe
 
 
-def local_executor_torchrun(nodes=1, devices=4):
+def local_executor_torchrun(nodes=1):
     env_vars = {
         "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
         "NCCL_NVLS_ENABLE": "0",
@@ -87,7 +87,7 @@ def local_executor_torchrun(nodes=1, devices=4):
         "NVTE_ASYNC_AMAX_REDUCTION": "1",
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
     }
-    devices = 8 if args.machine_name == "H200" else 4 
+    devices = 8 if args.machine_name == "H200" else 4
     return run.LocalExecutor(
         ntasks_per_node=devices,
         launcher="torchrun",
@@ -100,8 +100,7 @@ def run_pretraining():
     recipe = configure_recipe(cfg)
 
     executor = local_executor_torchrun(
-        nodes=recipe.trainer.num_nodes,
-        devices=recipe.trainer.devices
+        nodes=recipe.trainer.num_nodes
     )
 
     run.run(recipe, executor=executor, name=f"llama3_{args.model_size}_pretraining")
