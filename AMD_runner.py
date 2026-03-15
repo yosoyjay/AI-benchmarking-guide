@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import subprocess
@@ -9,6 +10,8 @@ from Benchmarks.AMD import GEMMHipblasLt as GEMM
 from Benchmarks.AMD import FIO
 from Infra import tools
 from Benchmarks.AMD import LLMBenchmark as llmb
+
+logger = logging.getLogger(__name__)
 
 current = os.getcwd()
 tools.create_dir("Outputs")
@@ -33,7 +36,7 @@ def _detect_sku():
                     return sku
     except Exception:
         pass
-    print("Warning: could not detect AMD GPU SKU, falling back to ND_MI300X_v5")
+    logger.warning("could not detect AMD GPU SKU, falling back to ND_MI300X_v5")
     return "ND_MI300X_v5"
 
 def get_system_specs():
@@ -125,7 +128,7 @@ if ("gemm" in arguments):
     try:
         run_GEMMHipBLAS()
     except Exception as e:
-        print(f"Warning: GEMMHipBLAS benchmark failed: {e}")
+        logger.warning("GEMMHipBLAS benchmark failed: %s", e)
     os.chdir(current)
 
 if ("rccl" in arguments):
@@ -133,7 +136,7 @@ if ("rccl" in arguments):
     try:
         run_RCCLBandwidth()
     except Exception as e:
-        print(f"Warning: RCCLBandwidth benchmark failed: {e}")
+        logger.warning("RCCLBandwidth benchmark failed: %s", e)
     os.chdir(current)
 
 if ("hbm" in arguments):
@@ -141,7 +144,7 @@ if ("hbm" in arguments):
     try:
         run_HBMBandwidth()
     except Exception as e:
-        print(f"Warning: HBMBandwidth benchmark failed: {e}")
+        logger.warning("HBMBandwidth benchmark failed: %s", e)
     os.chdir(current)
 
 if ("transfer" in arguments):
@@ -149,7 +152,7 @@ if ("transfer" in arguments):
     try:
         run_TransferBench()
     except Exception as e:
-        print(f"Warning: TransferBench benchmark failed: {e}")
+        logger.warning("TransferBench benchmark failed: %s", e)
     os.chdir(current)
 
 if ("fa" in arguments):
@@ -157,7 +160,7 @@ if ("fa" in arguments):
     try:
         run_FlashAttention()
     except Exception as e:
-        print(f"Warning: FlashAttention benchmark failed: {e}")
+        logger.warning("FlashAttention benchmark failed: %s", e)
     os.chdir(current)
 
 if ("fio" in arguments):
@@ -165,7 +168,7 @@ if ("fio" in arguments):
     try:
         run_FIO()
     except Exception as e:
-        print(f"Warning: FIO benchmark failed: {e}")
+        logger.warning("FIO benchmark failed: %s", e)
     os.chdir(current)
 
 if ("llm" in arguments):
@@ -173,7 +176,7 @@ if ("llm" in arguments):
     try:
         run_LLMBenchmark()
     except Exception as e:
-        print(f"Warning: LLMBenchmark failed: {e}")
+        logger.warning("LLMBenchmark failed: %s", e)
     os.chdir(current)
 
 if ("all" in arguments):
@@ -190,7 +193,7 @@ if ("all" in arguments):
         try:
             _fn()
         except Exception as e:
-            print(f"Warning: {_name} benchmark failed: {e}")
+            logger.warning("%s benchmark failed: %s", _name, e)
         os.chdir(current)
 if not match:
     print("Usage: python3 AMD_runner.py [arg]\n   or: python3 AMD_runner.py [arg1] [arg2] ... to run more than one test e.g python3 AMD_runner.py hbm nccl\nArguments are as follows, and are case insensitive:\nAll tests:  all\nROCBLAS GEMM:  gemm\nRCCL Bandwidth: rccl\nHBMBandwidth:   hbm\nTransferbench:   transfer\nFlash Attention: fa\nFIO Tests:   fio\nLLM Inference Workloads: llm")

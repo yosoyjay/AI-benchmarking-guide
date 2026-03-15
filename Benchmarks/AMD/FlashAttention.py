@@ -1,8 +1,11 @@
+import logging
 import os
 import docker
 import re
 from prettytable import PrettyTable
 from Infra import tools
+
+logger = logging.getLogger(__name__)
 
 class FlashAttention:
     def __init__(self, path:str, machine: str):
@@ -30,9 +33,9 @@ class FlashAttention:
         }
 
         # Creates new Docker container
-        print("Pulling docker container powderluv/vllm_dev_channel:20240927...")
+        logger.info("Pulling docker container powderluv/vllm_dev_channel:20240927...")
         self.container = client.containers.run('powderluv/vllm_dev_channel:20240927', **docker_run_options)
-        print(f"Created Docker Container ID: {self.container.id}")
+        logger.info("Created Docker Container ID: %s", self.container.id)
 
     def run(self):
         current = os.getcwd()
@@ -47,7 +50,7 @@ class FlashAttention:
         results = tools.run_cmd('git checkout 418d677',shell=True)
 
         self.create_container()
-        print("Running Flash Attention...")
+        logger.info("Running Flash Attention...")
         try:
             res = self.container.exec_run(f"bash -c 'python3 {self.dir_path}/flash-attention/benchmarks/benchmark_flash_attention.py | grep -A 2 \"batch_size=2, seqlen=8192 ###\"'")
             tools.write_log(res.output.decode('utf-8'))

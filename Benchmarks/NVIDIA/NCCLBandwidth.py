@@ -1,7 +1,10 @@
+import logging
 import os
 import subprocess
 from Infra import tools
 from prettytable import PrettyTable
+
+logger = logging.getLogger(__name__)
 
 class NCCLBandwidth:
     def __init__(self, path:str, machine: str):
@@ -16,7 +19,7 @@ class NCCLBandwidth:
         path ='nccl'
         isdir = os.path.isdir(path)
         if not isdir:
-            print("Building NCCL Library...")
+            logger.info("Building NCCL Library...")
             results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nccl.git', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl')
             os.chdir(build_path)
@@ -30,7 +33,7 @@ class NCCLBandwidth:
         path ='nccl-tests'
         isdir = os.path.isdir(path)
         if not isdir:
-            print("Building NCCL Test..")
+            logger.info("Building NCCL Test...")
             results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nccl-tests.git', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl-tests')
             os.chdir(build_path)
@@ -43,13 +46,13 @@ class NCCLBandwidth:
         current = os.getcwd()
         num_gpus_result = subprocess.run("nvidia-smi --query-gpu=name --format=csv,noheader | wc -l", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if num_gpus_result.returncode != 0 or not num_gpus_result.stdout.decode('utf-8').strip():
-            print("Warning: nvidia-smi failed to detect GPU count, defaulting to 8")
+            logger.warning("nvidia-smi failed to detect GPU count, defaulting to 8")
             num_gpus = "8"
         else:
             num_gpus = num_gpus_result.stdout.decode('utf-8').strip()
         if num_gpus == '4':
             self.algo = "Ring"
-        print("Running NCCL AllReduce on " + num_gpus + " GPUs")
+        logger.info("Running NCCL AllReduce on " + num_gpus + " GPUs")
 
         results = tools.run_cmd('NCCL_ALGO='+ self.algo +' ./build/all_reduce_perf -b 8 -e 8G -f 2 -g ' + num_gpus + ' -n 40 | grep float', shell=True, env=self.env)
         res = results.stdout.decode('utf-8').split('\n')

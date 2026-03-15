@@ -1,8 +1,11 @@
+import logging
 import os
 import shlex
 import subprocess
 from prettytable import PrettyTable
 from Infra import tools
+
+logger = logging.getLogger(__name__)
 
 class FIO:
     def __init__(self, path: str, machine: str):
@@ -11,7 +14,7 @@ class FIO:
 
     def run(self):
         current = os.getcwd()
-        print("Running FIO Tests...")
+        logger.info("Running FIO Tests...")
         tests = [
             ["read", "1M"],
             ["read", "512k"],
@@ -31,7 +34,7 @@ class FIO:
                 stderr=subprocess.PIPE,
             )
             if results.returncode != 0:
-                print(f"Warning: fio failed for {test[0]} bs={test[1]}: returncode={results.returncode}")
+                logger.warning("fio failed for %s bs=%s: returncode=%s", test[0], test[1], results.returncode)
                 res = "error"
             else:
                 tokens = results.stdout.decode('utf-8').split()

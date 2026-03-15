@@ -1,7 +1,11 @@
 import os
 import datetime
+import logging
 import subprocess
 import json
+
+logger = logging.getLogger(__name__)
+
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 pwd = _PROJECT_ROOT + "/Outputs/log.txt"
 curr = _PROJECT_ROOT
@@ -140,13 +144,13 @@ def summarize_babelstream(buffer, *, divisor, units, title, description):
     ops = {name: [] for name in BABELSTREAM_OPS}
     for log in buffer:
         if len(log) < 5:
-            print(f"Warning: BabelStream returned {len(log)} operations (expected 5), skipping run")
+            logger.warning("BabelStream returned %d operations (expected 5), skipping run", len(log))
             continue
         for idx, name in enumerate(BABELSTREAM_OPS):
             ops[name].append(float(log[idx][1]))
 
     if not ops["Copy"]:
-        print("Warning: all BabelStream runs produced incomplete output, no results to report")
+        logger.warning("All BabelStream runs produced incomplete output, no results to report")
         return None
 
     table = PrettyTable()

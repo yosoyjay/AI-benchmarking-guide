@@ -1,6 +1,9 @@
+import logging
 import os
 import time
 from Infra import tools
+
+logger = logging.getLogger(__name__)
 
 class HBMBandwidth:
     def __init__(self, path: str, machine: str):
@@ -56,7 +59,7 @@ class HBMBandwidth:
 
     def run(self):
         current = os.getcwd()
-        print("Running HBM Bandwidth...")
+        logger.info("Running HBM Bandwidth...")
         runs_executed = 0
         buffer = []
         while runs_executed < self.num_runs:

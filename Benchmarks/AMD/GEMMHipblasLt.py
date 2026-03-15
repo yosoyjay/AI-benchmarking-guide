@@ -1,7 +1,10 @@
+import logging
 import os
 from Infra import tools
 from prettytable import PrettyTable
 import docker
+
+logger = logging.getLogger(__name__)
 
 class GEMMHipBLAS:
     def __init__(self, path: str, dir_path: str, machine: str, i: int = 1000, w: int = 10000):
@@ -31,9 +34,9 @@ class GEMMHipBLAS:
             'detach': True
         }
         # Creates new Docker container
-        print("Pulling docker container rocm/vllm-dev:main...")
+        logger.info("Pulling docker container rocm/vllm-dev:main...")
         self.container = client.containers.run('rocm/vllm-dev:main', **docker_run_options)
-        print(f"Launched Docker Container ID: {self.container.id}")
+        logger.info("Launched Docker Container ID: %s", self.container.id)
 
     def build(self):
         path = "hipBLASLt"
@@ -50,13 +53,13 @@ class GEMMHipBLAS:
             tools.write_log(results.output.decode('utf-8'))
             results = self.container.exec_run(f'sudo apt -y install llvm-dev', stderr=True)
             tools.write_log(results.output.decode('utf-8'))
-            print("Building hipBLAS Library...")
+            logger.info("Building hipBLAS Library...")
             results = self.container.exec_run(f'/bin/sh -c "cd {self.dir_path}/hipBLASLt && ./install.sh -dc -a gfx942"', stderr=True)
             tools.write_log(results.output.decode('utf-8'))
 
     # run GEMM with predetermined matrix sizes that are commonly used in transformers
     def run_model_sizes(self):
-        print("Running HipBLAS...")
+        logger.info("Running HipBLAS...")
         m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
         n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
         k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
@@ -82,13 +85,13 @@ class GEMMHipBLAS:
                                 tflops = float(l[-3])/1000
                                 table1.add_row([m,n,k,tflops])
                             else:
-                                print(f"Warning: unexpected format in GEMMHipBLAS results: {line.strip()}")
+                                logger.warning("unexpected format in GEMMHipBLAS results: %s", line.strip())
             except FileNotFoundError:
-                print("Warning: GEMMHipBLAS_results.txt not found, skipping result table")
+                logger.warning("GEMMHipBLAS_results.txt not found, skipping result table")
                 table1 = PrettyTable()
                 table1.field_names = ["M","N","K","TFLOPS"]
             except Exception as e:
-                print(f"Warning: error reading GEMMHipBLAS results: {e}")
+                logger.warning("error reading GEMMHipBLAS results: %s", e)
                 table1 = PrettyTable()
                 table1.field_names = ["M","N","K","TFLOPS"]
 

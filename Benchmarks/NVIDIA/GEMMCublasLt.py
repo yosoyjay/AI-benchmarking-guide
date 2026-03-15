@@ -1,7 +1,10 @@
+import logging
 import os
 import subprocess
 from Infra import tools
 from prettytable import PrettyTable
+
+logger = logging.getLogger(__name__)
 
 class GEMMCublastLt:
     def __init__(self, path: str, machine: str, b: int = 1, i: int = 1000, w: int = 10000):
@@ -16,7 +19,7 @@ class GEMMCublastLt:
        
         # A100 does not support fp8
         if "A100" in machine:
-            print(f"Warning: A100 does not support {self.datatype}, using fp16 instead")
+            logger.warning("A100 does not support %s, using fp16 instead", self.datatype)
             self.datatype = "fp16"
 
     def config_conversion(self, config):
@@ -56,7 +59,7 @@ class GEMMCublastLt:
         results = tools.run_cmd(
             ["make"],
         )
-        print(results.stderr.decode('utf-8'))
+        logger.debug(results.stderr.decode('utf-8'))
         results = subprocess.run(
             ["mv", "cublaslt_gemm", bindir],
             stdout=subprocess.PIPE,
@@ -66,7 +69,7 @@ class GEMMCublastLt:
 
     # run GEMM with predetermined matrix sizes that are commonly used in transformers
     def run_model_sizes(self):
-        print("Running CublasLt with datatype " + self.datatype + "...")
+        logger.info("Running CublasLt with datatype " + self.datatype + "...")
         current = os.getcwd()
         if self.datatype == "fp8e4m3":
             m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
@@ -105,7 +108,7 @@ class GEMMCublastLt:
                 stderr=subprocess.PIPE,
             )
             if results.returncode != 0:
-                print(f"Warning: cublaslt_gemm failed for M={m_dims[i]} N={n_dims[i]} K={k_dims[i]}: returncode={results.returncode}")
+                logger.warning("cublaslt_gemm failed for M=%s N=%s K=%s: returncode=%s", m_dims[i], n_dims[i], k_dims[i], results.returncode)
                 tools.write_log(tools.check_error(results))
                 continue
             log = results.stdout.decode('utf-8').split()
@@ -117,7 +120,7 @@ class GEMMCublastLt:
             if len(item) == 6:
                 table1.add_row(item)
             else:
-                print(f"Warning: skipping cublaslt_gemm result with {len(item)} columns (expected 6): {item}")
+                logger.warning("Skipping cublaslt_gemm result with %d columns (expected 6): %s", len(item), item)
         print(table1)
         tools.export_markdown("GEMM CuBLASLt", "The results shown below are with random initialization (best representation of real-life workloads) " + self.datatype +  ", and " + str(self.w) + " warmup iterations.", table1)
         os.chdir(current)

@@ -1,6 +1,9 @@
+import logging
 import os
 import time
 from Infra import tools
+
+logger = logging.getLogger(__name__)
 
 class CPUStream:
     def __init__(self, path:str, machine: str):
@@ -50,7 +53,7 @@ class CPUStream:
 
     def run(self):
         current = os.getcwd()
-        print("Running CPU Stream...")
+        logger.info("Running CPU Stream...")
 
         runs_executed = 0
         buffer = []

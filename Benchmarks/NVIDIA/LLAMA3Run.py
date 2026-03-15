@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import subprocess
@@ -5,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from Infra import tools
 from prettytable import PrettyTable
+
+logger = logging.getLogger(__name__)
 
 class LLAMA3Pretraining:
     def __init__(self, config_path: str, machine_name: str, model_size: str = "8b"):
@@ -87,7 +90,7 @@ class LLAMA3Pretraining:
         # save to outputs folder
         plot_path = f"Outputs/LLAMA3_{self.model_size}_Pretrain_Results"
         plt.savefig(plot_path, dpi=300)
-        print(f"Training loss and time plot with steady state saved to {plot_path}")
+        logger.info("Training loss and time plot with steady state saved to %s", plot_path)
         tools.write_log(f"Training loss and time plot with steady state saved to {plot_path}") # print to log.txt
         plt.close()
 
@@ -97,7 +100,7 @@ class LLAMA3Pretraining:
     def run(self):
         log_path = f"Outputs/llama3_docker_output.txt" # log to separate file
         tools.write_log(f"Pulling and launching NeMo container for {self.machine_name}.") # write to log file
-        print(f"Pulling and launching NeMo docker container for {self.machine_name} and logging at 'Outputs/log.txt'.") # also let the user know where log is
+        logger.info("Pulling and launching NeMo docker container for %s and logging at 'Outputs/log.txt'.", self.machine_name)
 
         if self.model_size == "3b":
             time = 2
@@ -105,7 +108,7 @@ class LLAMA3Pretraining:
             time = 4
 
         tools.write_log(f"Pretraining will finish in {time} hours.")
-        print(f"Pretraining will finish in {time} hours.")
+        logger.info("Pretraining will finish in %d hours.", time)
 
         command = [
             "sudo", "docker", "run", "--rm", "-i",
@@ -123,12 +126,12 @@ class LLAMA3Pretraining:
             result = subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
 
         if result.returncode != 0:
-            print(f"Warning: Docker pretraining command failed with exit code {result.returncode}, skipping plot")
+            logger.warning("Docker pretraining command failed with exit code %d, skipping plot", result.returncode)
             tools.write_log(f"LLAMA3 pretraining failed with exit code {result.returncode}")
             return
 
         # now plot the results
-        print(f"Pretraining has finished with output saved to: {log_path}. Now plotting.")
+        logger.info("Pretraining has finished with output saved to: %s. Now plotting.", log_path)
         time_ss = self.plot_results(log_path)
 
         # add summary to markdown

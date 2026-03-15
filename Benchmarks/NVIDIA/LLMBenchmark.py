@@ -1,7 +1,10 @@
+import logging
 import os
 from Infra import tools
 from prettytable import PrettyTable
 from huggingface_hub import snapshot_download
+
+logger = logging.getLogger(__name__)
 
 class LLMBenchmark:
     def __init__(self, config_path: str, dir_path: str, machine: str):
@@ -19,12 +22,12 @@ class LLMBenchmark:
     def install_requirements(self):
         # Clone TensorRT-LLM repo
         if not os.path.exists(os.path.join(self.dir_path, 'TensorRT-LLM')):
-            print("Cloning TensorRT-LLM repository from https://github.com/NVIDIA/TensorRT-LLM.git")
+            logger.info("Cloning TensorRT-LLM repository from https://github.com/NVIDIA/TensorRT-LLM.git")
             i4 = tools.run_cmd("git clone https://github.com/NVIDIA/TensorRT-LLM.git && cd TensorRT-LLM && git checkout v0.18.2", shell=True, env=self.env)
 
             if not os.path.exists("/.dockerenv"):
                 # Install required packages
-                print("No Docker container detected. Installing tensorrt-llm")
+                logger.info("No Docker container detected. Installing tensorrt-llm")
                 i2 = tools.run_cmd("pip install tensorrt-llm==0.18.2", shell=True, env=self.env)
                 i2 = tools.run_cmd("sudo apt update && sudo apt-get -y install libopenmpi-dev", shell=True, env=self.env)
                 i2 = tools.run_cmd("pip3 install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt-libs", shell=True, env=self.env)
@@ -68,7 +71,7 @@ class LLMBenchmark:
                         be2 = tools.run_cmd(prepare_dataset_command, shell=True, env=self.env)
 
                 if not os.path.exists(self.dir_path + "/engines/" + model_name):
-                    print("Building engine for ", model_name)
+                    logger.info("Building engine for %s", model_name)
                     build_engine_command = f'''
                         trtllm-bench \
                         --workspace {self.dir_path + "/engines"} \
@@ -83,7 +86,7 @@ class LLMBenchmark:
     def run_benchmark(self):
         for model_name in self.config['models']:
             if self.config['models'][model_name]['use_model'] and self.config['models'][model_name]['type'] == "nvidia":
-                print("Benchmarking ", model_name, " with tp size ", self.config['models'][model_name]['tp_size'])
+                logger.info("Benchmarking %s with tp size %s", model_name, self.config['models'][model_name]['tp_size'])
                 self.table = PrettyTable(["tp size", "input len", "output len", "throughput(tokens/s)"])
                 for i in range(len(self.config['models'][model_name]['input_sizes'])):
                     isl = self.config['models'][model_name]['input_sizes'][i]
@@ -91,7 +94,7 @@ class LLMBenchmark:
                     tp = self.config['models'][model_name]['tp_size']
                     name = model_name.split('/')[1]
 
-                    print("input/output: " + str(isl) + "/" + str(osl) + "...")
+                    logger.info("input/output: %s/%s...", isl, osl)
                     dataset_path = self.dir_path + "/datasets/" + name + "_synthetic_" + str(isl) + "_" + str(osl) + ".txt"
                     results_path = self.dir_path + "/Outputs/results_" + name + "_" + str(isl) + "_" + str(osl) + ".txt"
 
@@ -127,12 +130,12 @@ class LLMBenchmark:
                                     continue
                                 row.append(str(int(float(parts[1].strip()))))
                             except (ValueError, IndexError):
-                                print(f"Warning: could not parse value from line: {line.strip()}")
+                                logger.warning("could not parse value from line: %s", line.strip())
                             break
 
                 if len(row) == 4:
                     self.table.add_row(row)
                 else:
-                    print(f"Warning: expected 4 values from {file_path}, got {len(row)}, skipping")
+                    logger.warning("expected 4 values from %s, got %d, skipping", file_path, len(row))
         except FileNotFoundError:
-            print(f"Warning: benchmark output file not found: {file_path}")
+            logger.warning("benchmark output file not found: %s", file_path)

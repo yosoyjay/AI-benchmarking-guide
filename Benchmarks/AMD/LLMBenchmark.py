@@ -1,6 +1,9 @@
+import logging
 import docker
 from prettytable import PrettyTable
 from Infra import tools
+
+logger = logging.getLogger(__name__)
 
 class LLMBenchmark:
     def __init__(self, config_path: str, dir_path: str, machine: str):
@@ -31,26 +34,26 @@ class LLMBenchmark:
         }
 
         # Creates new Docker container
-        print("Pulling docker container rocm/vllm-dev:20241121-tuned")
+        logger.info("Pulling docker container rocm/vllm-dev:20241121-tuned")
         self.container = client.containers.run('rocm/vllm-dev:20241121-tuned', **docker_run_options)
-        print(f"Docker Container ID: {self.container.id}")
+        logger.info("Docker Container ID: %s", self.container.id)
 
     def run_benchmark(self):
         if self.container is None:
-            print("Warning: no container created, skipping benchmark run")
+            logger.warning("no container created, skipping benchmark run")
             return
         try:
             for model_name in self.config['models']:
                 if self.config['models'][model_name]['use_model'] and self.config['models'][model_name]['type'] == "amd":
                     self.table = PrettyTable(["input len", "output len", "tp size", "throughput(tokens/s)"])
                     for tp_size in self.config['models'][model_name]['tp_sizes']:
-                        print(f"Benchmarking {model_name} with TP Size: {tp_size}")
+                        logger.info("Benchmarking %s with TP Size: %s", model_name, tp_size)
                         for max_num_seq in self.config['models'][model_name]['max_num_seqs']:
                             for i in range(len(self.config['models'][model_name]['input_length'])):
                                 for request in self.config['models'][model_name]['num_requests']:
                                     input_size = self.config['models'][model_name]['input_length'][i]
                                     output_size = self.config['models'][model_name]['output_length'][i]
-                                    print(f" Input Size: {input_size}, Output Size: {output_size}...")
+                                    logger.info(" Input Size: %s, Output Size: %s...", input_size, output_size)
                                     run_benchmark_command = f'''
                                         /bin/bash -c \
                                         "python /app/vllm/benchmarks/benchmark_throughput.py \

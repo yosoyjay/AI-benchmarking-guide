@@ -93,7 +93,7 @@ class TestFormatOutput:
         captured = capsys.readouterr()
         assert "Device to Host" in captured.out
 
-    def test_missing_section_prints_warning(self, capsys):
+    def test_missing_section_logs_warning(self, caplog):
         nv = NVBandwidth.__new__(NVBandwidth)
         nv.name = "NVBandwidth"
         nv.machine_name = "test"
@@ -101,8 +101,8 @@ class TestFormatOutput:
         orig = tools_mod.export_markdown
         tools_mod.export_markdown = lambda *a, **kw: None
         try:
-            nv.format_output("some unrelated text\nwith no test names\n")
+            with caplog.at_level("WARNING"):
+                nv.format_output("some unrelated text\nwith no test names\n")
         finally:
             tools_mod.export_markdown = orig
-        captured = capsys.readouterr()
-        assert "Warning" in captured.out
+        assert "not found in nvbandwidth output" in caplog.text

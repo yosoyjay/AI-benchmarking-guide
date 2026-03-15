@@ -1,6 +1,9 @@
+import logging
 import os
 from Infra import tools
 from prettytable import PrettyTable
+
+logger = logging.getLogger(__name__)
 
 class Multichase:
     def __init__(self, path:str, machine: str):
@@ -24,7 +27,7 @@ class Multichase:
 
     def run(self):
         current = os.getcwd()
-        print("Running Multichase...")
+        logger.info("Running Multichase...")
 
         results = tools.run_cmd("cd Benchmarks/NVIDIA && sudo chmod 755 run_multichase.sh && ./run_multichase.sh",shell=True)
         print(results.stdout.decode("utf-8"))

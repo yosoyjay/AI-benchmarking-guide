@@ -1,8 +1,11 @@
+import logging
 import subprocess
 import re
 import os
 from prettytable import PrettyTable
 from Infra import tools
+
+logger = logging.getLogger(__name__)
 
 class FlashAttention:
     def __init__(self, path:str, machine: str):
@@ -19,7 +22,7 @@ class FlashAttention:
         build_path = os.path.join(current, 'flash-attention/benchmarks')
         os.chdir(build_path)
 
-        print("Running Flash Attention with batch size=2, seqlen=8192...")
+        logger.info("Running Flash Attention with batch size=2, seqlen=8192...")
         results = tools.run_cmd('python3 benchmark_flash_attention.py | grep -A 2 "batch_size=2, seqlen=8192 ###"',shell=True)
         os.chdir(current)
 

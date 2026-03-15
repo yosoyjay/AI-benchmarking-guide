@@ -1,7 +1,10 @@
+import logging
 import subprocess
 import os
 from Infra import tools
 from prettytable import PrettyTable
+
+logger = logging.getLogger(__name__)
 
 class NVBandwidth:
     TEST_NAMES = [
@@ -41,7 +44,7 @@ class NVBandwidth:
     def run(self):
         current = os.getcwd()
         os.chdir(os.path.join(current, 'nvbandwidth'))
-        print("Running NVBandwidth...")
+        logger.info("Running NVBandwidth...")
         results = tools.run_cmd('./nvbandwidth -t device_to_host_memcpy_ce host_to_device_memcpy_ce device_to_device_bidirectional_memcpy_read_ce', shell=True)
         log = results.stdout.decode('utf-8')
         os.chdir(current)
@@ -95,7 +98,7 @@ class NVBandwidth:
         result_labels = []
         for name, label in zip(self.TEST_NAMES, self.LABELS):
             if name not in sections:
-                print(f"Warning: section '{name}' not found in nvbandwidth output")
+                logger.warning("section '%s' not found in nvbandwidth output", name)
                 continue
             table = self._extract_summary_table(sections[name])
             results.append(table)
