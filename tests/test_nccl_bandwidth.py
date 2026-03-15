@@ -14,32 +14,32 @@ SAMPLE_ALL_REDUCE_OUTPUT = """\
 
 
 class TestParseNcclOutput:
-    def test_extracts_all_rows(self):
+    def test_extracts_all_rows(self) -> None:
         rows = parse_nccl_output(SAMPLE_ALL_REDUCE_OUTPUT)
         assert len(rows) == 5
 
-    def test_size_and_bandwidth(self):
+    def test_size_and_bandwidth(self) -> None:
         rows = parse_nccl_output(SAMPLE_ALL_REDUCE_OUTPUT)
         assert rows[0]["size"] == "8"
         assert rows[0]["bandwidth"] == "0.00"
         assert rows[-1]["size"] == "8589934592"
         assert rows[-1]["bandwidth"] == "182.68"
 
-    def test_empty_input_returns_empty(self):
+    def test_empty_input_returns_empty(self) -> None:
         assert parse_nccl_output("") == []
 
-    def test_short_lines_ignored(self):
+    def test_short_lines_ignored(self) -> None:
         assert parse_nccl_output("only three fields here\n") == []
 
 
 class TestBuildTable:
-    def test_smoke(self):
+    def test_smoke(self) -> None:
         rows = parse_nccl_output(SAMPLE_ALL_REDUCE_OUTPUT)
         table = _build_table(rows, "NVLS")
         assert len(table.rows) == 5
         assert "Message Size" in table.field_names
         assert "Bandwidth (NVLS)" in table.field_names
 
-    def test_empty_rows(self):
+    def test_empty_rows(self) -> None:
         table = _build_table([], "Ring")
         assert len(table.rows) == 0

@@ -2,6 +2,8 @@
 
 import logging
 
+import pytest
+
 from infra.tools import BABELSTREAM_OPS, parse_babelstream_output, summarize_babelstream
 
 # Realistic BabelStream output (hip-stream / cuda-stream)
@@ -23,24 +25,24 @@ Dot         1580000.000 0.00034     0.00037     0.00035
 
 
 class TestParseBabelstreamOutput:
-    def test_extracts_five_ops(self):
+    def test_extracts_five_ops(self) -> None:
         results = parse_babelstream_output(SAMPLE_BABELSTREAM_OUTPUT)
         assert len(results) == 5
         names = [r[0] for r in results]
         assert names == list(BABELSTREAM_OPS)
 
-    def test_bandwidth_values(self):
+    def test_bandwidth_values(self) -> None:
         results = parse_babelstream_output(SAMPLE_BABELSTREAM_OUTPUT)
         assert results[0] == ["Copy", "1620000.000"]
         assert results[4] == ["Dot", "1580000.000"]
 
-    def test_empty_input_returns_empty(self):
+    def test_empty_input_returns_empty(self) -> None:
         assert parse_babelstream_output("") == []
 
-    def test_garbage_input_returns_empty(self):
+    def test_garbage_input_returns_empty(self) -> None:
         assert parse_babelstream_output("no ops here\njust noise\n") == []
 
-    def test_partial_output(self):
+    def test_partial_output(self) -> None:
         partial = "Copy        1620000.000 0.00033     0.00035     0.00034\n"
         results = parse_babelstream_output(partial)
         assert len(results) == 1
@@ -48,7 +50,7 @@ class TestParseBabelstreamOutput:
 
 
 class TestSummarizeBabelstream:
-    def _make_buffer(self, n_runs=3):
+    def _make_buffer(self, n_runs: int = 3) -> list[list[list[str]]]:
         """Build a buffer of n identical runs for testing."""
         run = [
             ["Copy", "1620000"],
@@ -59,7 +61,7 @@ class TestSummarizeBabelstream:
         ]
         return [run] * n_runs
 
-    def test_computes_min_max_mean(self, monkeypatch):
+    def test_computes_min_max_mean(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # Suppress print and export_markdown side effects
         monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
         import infra.tools as tools_mod
@@ -81,7 +83,9 @@ class TestSummarizeBabelstream:
         copy_row = table.rows[0]
         assert copy_row == ["Copy", 1.62, 1.62, 1.62]
 
-    def test_returns_none_on_incomplete_data(self, monkeypatch, caplog):
+    def test_returns_none_on_incomplete_data(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
         import infra.tools as tools_mod
 
@@ -100,7 +104,7 @@ class TestSummarizeBabelstream:
         assert result is None
         assert "incomplete" in caplog.text.lower() or "skipping" in caplog.text.lower()
 
-    def test_warns_on_incomplete_runs(self, monkeypatch, caplog):
+    def test_warns_on_incomplete_runs(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
         monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
         import infra.tools as tools_mod
 
@@ -117,7 +121,7 @@ class TestSummarizeBabelstream:
             )
         assert "skipping" in caplog.text.lower() or "incomplete" in caplog.text.lower()
 
-    def test_mixed_valid_and_incomplete_runs(self, monkeypatch):
+    def test_mixed_valid_and_incomplete_runs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("builtins.print", lambda *a, **kw: None)
         import infra.tools as tools_mod
 

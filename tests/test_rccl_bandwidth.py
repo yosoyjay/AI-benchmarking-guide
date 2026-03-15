@@ -14,26 +14,26 @@ _SAMPLE_OUTPUT = """\
 
 
 class TestParseRcclOutput:
-    def test_extracts_all_rows(self):
+    def test_extracts_all_rows(self) -> None:
         rows = rccl_bandwidth.parse_rccl_output(_SAMPLE_OUTPUT)
         assert len(rows) == 3
 
-    def test_size_and_bandwidth(self):
+    def test_size_and_bandwidth(self) -> None:
         rows = rccl_bandwidth.parse_rccl_output(_SAMPLE_OUTPUT)
         assert rows[0]["size"] == "8"
         assert rows[0]["bandwidth"] == "0.00"
         assert rows[-1]["size"] == "8589934592"
         assert rows[-1]["bandwidth"] == "50.71"
 
-    def test_empty_input_returns_empty(self):
+    def test_empty_input_returns_empty(self) -> None:
         assert rccl_bandwidth.parse_rccl_output("") == []
 
-    def test_short_lines_ignored(self):
+    def test_short_lines_ignored(self) -> None:
         assert rccl_bandwidth.parse_rccl_output("# header\nshort line\n") == []
 
 
 class TestBuildTable:
-    def test_smoke(self):
+    def test_smoke(self) -> None:
         sizes = ["8", "16"]
         bw_cols = [["0.00", "0.00"], ["0.01", "0.01"]]
         algos = ["Tree", "Ring"]
@@ -43,14 +43,14 @@ class TestBuildTable:
         assert "Ring" in text
         assert "Message Size" in text
 
-    def test_empty(self):
+    def test_empty(self) -> None:
         table = rccl_bandwidth._build_table([], [], [])
         assert table.get_string() is not None
 
 
 class TestModuleConstants:
-    def test_image_constant(self):
+    def test_image_constant(self) -> None:
         assert "amd-rccl" in rccl_bandwidth._RCCL_IMAGE
 
-    def test_run_is_callable(self):
+    def test_run_is_callable(self) -> None:
         assert callable(rccl_bandwidth.run)

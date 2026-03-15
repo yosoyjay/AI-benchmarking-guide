@@ -2,6 +2,7 @@
 
 import subprocess
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -22,7 +23,7 @@ from infra.capture import (
 
 
 class TestRunContext:
-    def test_fields(self, tmp_path):
+    def test_fields(self, tmp_path: Path) -> None:
         ts = datetime(2025, 1, 15, 10, 30, 0)
         ctx = RunContext(
             benchmark="gemm_cublas_lt",
@@ -38,7 +39,7 @@ class TestRunContext:
         assert ctx.platform == "nvidia"
         assert ctx.extra == {}
 
-    def test_extra_default(self, tmp_path):
+    def test_extra_default(self, tmp_path: Path) -> None:
         ts = datetime(2025, 1, 1)
         ctx = RunContext(
             benchmark="fio",
@@ -53,7 +54,7 @@ class TestRunContext:
         ctx.extra["rw"] = "read"
         assert ctx.extra == {"rw": "read"}
 
-    def test_extra_not_shared(self, tmp_path):
+    def test_extra_not_shared(self, tmp_path: Path) -> None:
         """Each instance should get its own extra dict."""
         ts = datetime(2025, 1, 1)
         a = RunContext("a", "s", "nvidia", "v", ts, tmp_path, tmp_path)
@@ -68,19 +69,19 @@ class TestRunContext:
 
 
 class TestGetVersion:
-    def test_returns_git_describe(self):
+    def test_returns_git_describe(self) -> None:
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value.returncode = 0
             mock_run.return_value.stdout = b"v0.1.0-3-gabc1234\n"
             assert get_version() == "v0.1.0-3-gabc1234"
 
-    def test_returns_unknown_on_failure(self):
+    def test_returns_unknown_on_failure(self) -> None:
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value.returncode = 128
             mock_run.return_value.stdout = b""
             assert get_version() == "unknown"
 
-    def test_returns_unknown_when_git_missing(self):
+    def test_returns_unknown_when_git_missing(self) -> None:
         with patch("infra.capture.subprocess.run", side_effect=FileNotFoundError):
             assert get_version() == "unknown"
 
@@ -91,18 +92,18 @@ class TestGetVersion:
 
 
 class TestSanitizeSku:
-    def test_spaces(self):
+    def test_spaces(self) -> None:
         assert _sanitize_sku("NVIDIA H200") == "NVIDIA_H200"
 
-    def test_slashes(self):
+    def test_slashes(self) -> None:
         assert _sanitize_sku("ND/MI300X") == "ND_MI300X"
 
-    def test_combined(self):
+    def test_combined(self) -> None:
         assert _sanitize_sku("NVIDIA H200 / GB200") == "NVIDIA_H200___GB200"
 
 
 class TestFormatTimestamp:
-    def test_format(self):
+    def test_format(self) -> None:
         ts = datetime(2025, 3, 15, 14, 30, 45)
         assert _format_timestamp(ts) == "20250315_143045"
 
@@ -113,20 +114,20 @@ class TestFormatTimestamp:
 
 
 class TestMakeRunDir:
-    def test_creates_directory_structure(self, tmp_path):
+    def test_creates_directory_structure(self, tmp_path: Path) -> None:
         ts = datetime(2025, 6, 1, 12, 0, 0)
         run_dir = make_run_dir(tmp_path, "gemm_cublas_lt", "NVIDIA H200", ts)
         assert run_dir.name == "gemm_cublas_lt_NVIDIA_H200_20250601_120000"
         assert (run_dir / "raw").is_dir()
         assert (run_dir / "processed").is_dir()
 
-    def test_idempotent(self, tmp_path):
+    def test_idempotent(self, tmp_path: Path) -> None:
         ts = datetime(2025, 6, 1, 12, 0, 0)
         d1 = make_run_dir(tmp_path, "fio", "sku", ts)
         d2 = make_run_dir(tmp_path, "fio", "sku", ts)
         assert d1 == d2
 
-    def test_parent_is_results_dir(self, tmp_path):
+    def test_parent_is_results_dir(self, tmp_path: Path) -> None:
         ts = datetime(2025, 1, 1)
         run_dir = make_run_dir(tmp_path, "nccl_bandwidth", "H100", ts)
         assert run_dir.parent == tmp_path
@@ -138,7 +139,7 @@ class TestMakeRunDir:
 
 
 class TestSaveRaw:
-    def test_writes_files(self, tmp_path):
+    def test_writes_files(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run"
         (run_dir / "raw").mkdir(parents=True)
         ts = datetime(2025, 3, 15, 10, 0, 0)
@@ -149,7 +150,7 @@ class TestSaveRaw:
         assert stdout_path.name == "gemm_cublas_lt_abc1234_20250315_100000.stdout"
         assert stderr_path.name == "gemm_cublas_lt_abc1234_20250315_100000.stderr"
 
-    def test_suffix(self, tmp_path):
+    def test_suffix(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run"
         (run_dir / "raw").mkdir(parents=True)
         ts = datetime(2025, 1, 1, 0, 0, 0)
@@ -157,7 +158,7 @@ class TestSaveRaw:
         stdout_path, _ = save_raw(run_dir, "fio", "v1", ts, "data", "", suffix="_read_1M")
         assert "_read_1M.stdout" in stdout_path.name
 
-    def test_empty_strings(self, tmp_path):
+    def test_empty_strings(self, tmp_path: Path) -> None:
         run_dir = tmp_path / "run"
         (run_dir / "raw").mkdir(parents=True)
         ts = datetime(2025, 1, 1)
@@ -172,7 +173,7 @@ class TestSaveRaw:
 # ---------------------------------------------------------------------------
 
 
-def _make_ctx(tmp_path, benchmark="test_bench"):
+def _make_ctx(tmp_path: Path, benchmark: str = "test_bench") -> RunContext:
     """Build a RunContext rooted in tmp_path with raw/ dir created."""
     run_dir = tmp_path / "run"
     (run_dir / "raw").mkdir(parents=True)
@@ -189,7 +190,7 @@ def _make_ctx(tmp_path, benchmark="test_bench"):
 
 
 class TestCaptureCmd:
-    def test_returns_completed_process(self, tmp_path):
+    def test_returns_completed_process(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
@@ -199,7 +200,7 @@ class TestCaptureCmd:
             assert isinstance(result, subprocess.CompletedProcess)
             assert result.returncode == 0
 
-    def test_saves_stdout_file(self, tmp_path):
+    def test_saves_stdout_file(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(
@@ -214,7 +215,7 @@ class TestCaptureCmd:
             assert stdout_files[0].read_text() == "output data"
             assert stderr_files[0].read_text() == "err data"
 
-    def test_suffix_in_filename(self, tmp_path):
+    def test_suffix_in_filename(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout=b"x", stderr=b"")
@@ -223,7 +224,7 @@ class TestCaptureCmd:
             stdout_files = list(raw_dir.glob("*.stdout"))
             assert "_m1024.stdout" in stdout_files[0].name
 
-    def test_forwards_kwargs(self, tmp_path):
+    def test_forwards_kwargs(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout=b"", stderr=b"")
@@ -231,7 +232,7 @@ class TestCaptureCmd:
             _, call_kwargs = mock_run.call_args
             assert call_kwargs["cwd"] == "/tmp"
 
-    def test_handles_none_stdout_stderr(self, tmp_path):
+    def test_handles_none_stdout_stderr(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout=None, stderr=None)
@@ -241,7 +242,7 @@ class TestCaptureCmd:
             stdout_files = list(raw_dir.glob("*.stdout"))
             assert stdout_files[0].read_text() == ""
 
-    def test_nonzero_returncode_logged(self, tmp_path):
+    def test_nonzero_returncode_logged(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         with patch("infra.capture.subprocess.run") as mock_run:
             mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=1, stdout=b"", stderr=b"fail")
@@ -255,7 +256,9 @@ class TestCaptureCmd:
 
 
 class TestCaptureDocker:
-    def _mock_container(self, stdout=b"docker out", stderr=b"docker err", exit_code=0):
+    def _mock_container(
+        self, stdout: bytes = b"docker out", stderr: bytes = b"docker err", exit_code: int = 0
+    ) -> MagicMock:
         container = MagicMock()
         container.exec_run.return_value = SimpleNamespace(
             output=(stdout, stderr),
@@ -263,14 +266,14 @@ class TestCaptureDocker:
         )
         return container
 
-    def test_returns_tuple(self, tmp_path):
+    def test_returns_tuple(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = self._mock_container()
         result = capture_docker(container, ["python", "bench.py"], ctx=ctx)
         assert isinstance(result, tuple)
         assert len(result) == 3
 
-    def test_stdout_stderr_content(self, tmp_path):
+    def test_stdout_stderr_content(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = self._mock_container(stdout=b"hello", stderr=b"warning")
         stdout, stderr, exit_code = capture_docker(container, ["cmd"], ctx=ctx)
@@ -278,7 +281,7 @@ class TestCaptureDocker:
         assert stderr == "warning"
         assert exit_code == 0
 
-    def test_saves_raw_files(self, tmp_path):
+    def test_saves_raw_files(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = self._mock_container(stdout=b"out data", stderr=b"err data")
         capture_docker(container, ["cmd"], ctx=ctx)
@@ -289,7 +292,7 @@ class TestCaptureDocker:
         assert stdout_files[0].read_text() == "out data"
         assert stderr_files[0].read_text() == "err data"
 
-    def test_suffix_in_filename(self, tmp_path):
+    def test_suffix_in_filename(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = self._mock_container()
         capture_docker(container, ["cmd"], ctx=ctx, suffix="_ring")
@@ -297,19 +300,19 @@ class TestCaptureDocker:
         stdout_files = list(raw_dir.glob("*.stdout"))
         assert "_ring.stdout" in stdout_files[0].name
 
-    def test_calls_demux_true(self, tmp_path):
+    def test_calls_demux_true(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = self._mock_container()
         capture_docker(container, ["cmd"], ctx=ctx)
         container.exec_run.assert_called_once_with(["cmd"], demux=True)
 
-    def test_nonzero_exit_code(self, tmp_path):
+    def test_nonzero_exit_code(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = self._mock_container(exit_code=1)
         _, _, exit_code = capture_docker(container, ["cmd"], ctx=ctx)
         assert exit_code == 1
 
-    def test_handles_none_output(self, tmp_path):
+    def test_handles_none_output(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = MagicMock()
         container.exec_run.return_value = SimpleNamespace(
@@ -320,7 +323,7 @@ class TestCaptureDocker:
         assert stdout == ""
         assert stderr == ""
 
-    def test_handles_non_demux_output(self, tmp_path):
+    def test_handles_non_demux_output(self, tmp_path: Path) -> None:
         """When demux is not supported, output is raw bytes instead of tuple."""
         ctx = _make_ctx(tmp_path)
         container = MagicMock()
@@ -332,7 +335,7 @@ class TestCaptureDocker:
         assert stdout == "raw bytes"
         assert stderr == ""
 
-    def test_forwards_kwargs(self, tmp_path):
+    def test_forwards_kwargs(self, tmp_path: Path) -> None:
         ctx = _make_ctx(tmp_path)
         container = self._mock_container()
         capture_docker(container, ["cmd"], ctx=ctx, stderr=True)

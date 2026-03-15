@@ -4,9 +4,9 @@ from benchmarks.amd import hbm_bandwidth
 
 
 class TestModuleConstants:
-    def test_repo_constant_exists(self):
+    def test_repo_constant_exists(self) -> None:
         assert hasattr(hbm_bandwidth, "_BABELSTREAM_REPO")
         assert "BabelStream" in hbm_bandwidth._BABELSTREAM_REPO
 
-    def test_run_is_callable(self):
+    def test_run_is_callable(self) -> None:
         assert callable(hbm_bandwidth.run)
