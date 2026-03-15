@@ -41,7 +41,7 @@ class FIO:
         tools.export_markdown("FIO Tests", "", table)
 
         results = subprocess.run(
-            "rm Outputs/test*",
+            "rm " + shlex.quote(current + "/Outputs") + "/test*",
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
