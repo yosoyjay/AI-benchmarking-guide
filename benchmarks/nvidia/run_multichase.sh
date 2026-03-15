@@ -1,5 +1,12 @@
 #!/bin/bash
-# Detect CPU count and NUMA nodes dynamically
+set -euo pipefail
+# Detect CPU count and NUMA nodes dynamically, then run multichase
+# across representative CPUs and all NUMA memory nodes.
+#
+# Usage: run_multichase.sh [/path/to/multichase]
+
+multichase_bin="${1:-multichase}"
+
 total_cpus=$(nproc)
 last_cpu=$((total_cpus - 1))
 mid_cpu=$((total_cpus / 2))
@@ -10,7 +17,7 @@ cpus=(0 "$mid_cpu" "$last_cpu")
 # Detect NUMA nodes from sysfs
 numa_nodes=()
 for node_dir in /sys/devices/system/node/node[0-9]*; do
-    numa_nodes+=("$(basename "$node_dir" | sed 's/node//')")
+    numa_nodes+=("$(basename "${node_dir}" | sed 's/node//')")
 done
 # Fallback if sysfs detection fails
 if [ ${#numa_nodes[@]} -eq 0 ]; then
@@ -25,10 +32,10 @@ done
 printf "\n"
 
 for cpu in "${cpus[@]}"; do
-printf "%4s " ${cpu}
-for numa in "${numa_nodes[@]}"; do
-result=$(numactl -C ${cpu} -m ${numa} ../../multichase/multichase -s 512 -m 1g -n 120)
-printf "%7.1f " ${result}
-done
-printf "\n"
+    printf "%4s " "${cpu}"
+    for numa in "${numa_nodes[@]}"; do
+        result=$(numactl -C "${cpu}" -m "${numa}" "${multichase_bin}" -s 512 -m 1g -n 120)
+        printf "%7.1f " "${result}"
+    done
+    printf "\n"
 done

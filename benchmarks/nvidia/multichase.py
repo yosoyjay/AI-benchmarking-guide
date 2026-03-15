@@ -67,9 +67,9 @@ def run(work_dir, machine_name):
     _build(work_dir)
 
     logger.info("Running Multichase...")
-    script_dir = os.path.join(work_dir, "benchmarks", "nvidia")
-    tools.run_cmd(["chmod", "755", "run_multichase.sh"], cwd=script_dir)
-    result = tools.run_cmd(["./run_multichase.sh"], cwd=script_dir)
+    multichase_bin = os.path.join(work_dir, "multichase", "multichase")
+    script_path = os.path.join(work_dir, "benchmarks", "nvidia", "run_multichase.sh")
+    result = tools.run_cmd([script_path, multichase_bin])
     output = result.stdout.decode("utf-8")
     print(output)
     tools.export_markdown("Multichase", output, None)
