@@ -27,7 +27,7 @@ _SKU_MAP = {
 }
 
 
-def _detect_sku():
+def _detect_sku() -> str:
     try:
         results = subprocess.run(
             "rocminfo | grep 'Marketing Name'",
@@ -46,7 +46,7 @@ def _detect_sku():
     return "ND_MI300X_v5"
 
 
-def get_system_specs():
+def get_system_specs() -> str:
     with open(os.path.join("Outputs", "system_specs.txt"), "w") as file:
 
         results = subprocess.run(
@@ -108,7 +108,7 @@ def get_system_specs():
     return _detect_sku()
 
 
-def _make_ctx(benchmark, sku, results_dir, version, timestamp):
+def _make_ctx(benchmark: str, sku: str, results_dir: Path, version: str, timestamp: datetime) -> RunContext:
     """Create a RunContext for a single benchmark."""
     run_dir = make_run_dir(results_dir, benchmark, sku, timestamp)
     return RunContext(
@@ -122,21 +122,21 @@ def _make_ctx(benchmark, sku, results_dir, version, timestamp):
     )
 
 
-def run_TransferBench(machine_name, current, ctx=None):
+def run_TransferBench(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = TB.run(work_dir=current, machine_name=machine_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.transfer_bench_to_csv(ctx, parsed)
         process.process_run("transfer_bench", ctx, csv_rows)
 
 
-def run_GEMMHipBLAS(machine_name, current, ctx=None):
+def run_GEMMHipBLAS(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = GEMM.run(work_dir=current, machine_name=machine_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.gemm_hipblas_lt_to_csv(ctx, parsed)
         process.process_run("gemm_hipblas_lt", ctx, csv_rows)
 
 
-def run_RCCLBandwidth(machine_name, current, ctx=None):
+def run_RCCLBandwidth(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     all_parsed = RCCL.run(work_dir=current, machine_name=machine_name, ctx=ctx)
     if ctx is not None:
         csv_rows = []
@@ -145,28 +145,28 @@ def run_RCCLBandwidth(machine_name, current, ctx=None):
         process.process_run("rccl_bandwidth", ctx, csv_rows)
 
 
-def run_FlashAttention(machine_name, current, ctx=None):
+def run_FlashAttention(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = FA.run(work_dir=current, machine_name=machine_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.flash_attention_to_csv(ctx, parsed)
         process.process_run("flash_attention", ctx, csv_rows)
 
 
-def run_FIO(machine_name, current, ctx=None):
+def run_FIO(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = FIO.run(work_dir=current, machine_name=machine_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.fio_to_csv(ctx, parsed)
         process.process_run("fio", ctx, csv_rows)
 
 
-def run_HBMBandwidth(machine_name, current, ctx=None):
+def run_HBMBandwidth(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = HBM.run(work_dir=current, machine_name=machine_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.hbm_bandwidth_to_csv(ctx, parsed)
         process.process_run("hbm_bandwidth", ctx, csv_rows)
 
 
-def run_LLMBenchmark(machine_name, current, ctx=None):
+def run_LLMBenchmark(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = llmb.run(work_dir=current, machine_name=machine_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.llm_benchmark_amd_to_csv(ctx, parsed)
@@ -184,7 +184,7 @@ BENCHMARKS = {
 }
 
 
-def main():
+def main() -> None:
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(description="AMD GPU Benchmark Suite")

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 _PLATFORM = "nvidia"
 
 
-def get_system_specs(current, host_name):
+def get_system_specs(current: str, host_name: str) -> str:
     results = subprocess.run(
         ["nvidia-smi", "--query-gpu=gpu_name,vbios_version,driver_version,memory.total", "--format=csv"],
         stdout=subprocess.PIPE,
@@ -84,7 +84,7 @@ def get_system_specs(current, host_name):
     return output[0].strip()
 
 
-def _make_ctx(benchmark, sku, results_dir, version, timestamp):
+def _make_ctx(benchmark: str, sku: str, results_dir: Path, version: str, timestamp: datetime) -> RunContext:
     """Create a RunContext for a single benchmark."""
     run_dir = make_run_dir(results_dir, benchmark, sku, timestamp)
     return RunContext(
@@ -98,14 +98,14 @@ def _make_ctx(benchmark, sku, results_dir, version, timestamp):
     )
 
 
-def run_CublasLt(sku_name, ctx=None):
+def run_CublasLt(sku_name: str, ctx: RunContext | None = None) -> None:
     parsed = gemm.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.gemm_cublas_lt_to_csv(ctx, parsed)
         process.process_run("gemm_cublas_lt", ctx, csv_rows)
 
 
-def run_HBMBandwidth(sku_name, ctx=None):
+def run_HBMBandwidth(sku_name: str, ctx: RunContext | None = None) -> None:
     if "GB200" in sku_name:
         logger.warning("HBM bandwidth Test not supported on GB200 yet")
         return
@@ -115,28 +115,28 @@ def run_HBMBandwidth(sku_name, ctx=None):
         process.process_run("hbm_bandwidth", ctx, csv_rows)
 
 
-def run_NVBandwidth(sku_name, ctx=None):
+def run_NVBandwidth(sku_name: str, ctx: RunContext | None = None) -> None:
     parsed = NV.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.nv_bandwidth_to_csv(ctx, parsed)
         process.process_run("nv_bandwidth", ctx, csv_rows)
 
 
-def run_NCCLBandwidth(sku_name, ctx=None):
+def run_NCCLBandwidth(sku_name: str, ctx: RunContext | None = None) -> None:
     parsed = NCCL.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.nccl_bandwidth_to_csv(ctx, parsed)
         process.process_run("nccl_bandwidth", ctx, csv_rows)
 
 
-def run_FlashAttention(sku_name, ctx=None):
+def run_FlashAttention(sku_name: str, ctx: RunContext | None = None) -> None:
     parsed = FA.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.flash_attention_to_csv(ctx, parsed)
         process.process_run("flash_attention", ctx, csv_rows)
 
 
-def run_Multichase(sku_name, ctx=None):
+def run_Multichase(sku_name: str, ctx: RunContext | None = None) -> None:
     result = Multichase.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         node_names, rows = result
@@ -144,28 +144,28 @@ def run_Multichase(sku_name, ctx=None):
         process.process_run("multichase", ctx, csv_rows)
 
 
-def run_CPUStream(sku_name, ctx=None):
+def run_CPUStream(sku_name: str, ctx: RunContext | None = None) -> None:
     parsed = CPU.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.cpu_stream_to_csv(ctx, parsed)
         process.process_run("cpu_stream", ctx, csv_rows)
 
 
-def run_FIO(sku_name, ctx=None):
+def run_FIO(sku_name: str, ctx: RunContext | None = None) -> None:
     parsed = FIO.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.fio_to_csv(ctx, parsed)
         process.process_run("fio", ctx, csv_rows)
 
 
-def run_LLMBenchmark(sku_name, ctx=None):
+def run_LLMBenchmark(sku_name: str, ctx: RunContext | None = None) -> None:
     parsed = llmb.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
     if ctx is not None:
         csv_rows = process.llm_benchmark_nv_to_csv(ctx, parsed)
         process.process_run("llm_benchmark", ctx, csv_rows)
 
 
-def run_LLAMA3Pretrain(sku_name, model_size="8b", ctx=None):
+def run_LLAMA3Pretrain(sku_name: str, model_size: str = "8b", ctx: RunContext | None = None) -> None:
     if "GB200" in sku_name or "H200" in sku_name:
         test = llama3pre.LLAMA3Pretraining("config.json", sku_name, model_size)
     else:
@@ -193,7 +193,7 @@ BENCHMARKS = {
 }
 
 
-def main():
+def main() -> None:
     logging.basicConfig(level=logging.INFO)
 
     parser = argparse.ArgumentParser(description="NVIDIA GPU Benchmark Suite")
