@@ -20,9 +20,9 @@ class LLMBenchmark:
         self.table = None
         self.env = {**os.environ, 'HF_HOME': dir_path}
 
-        tools.create_dir(f"{self.dir_path}/datasets")
-        tools.create_dir(f"{self.dir_path}/engines")
-        tools.create_dir(f"{self.dir_path}/hub")
+        tools.create_dir(os.path.join(self.dir_path, "datasets"))
+        tools.create_dir(os.path.join(self.dir_path, "engines"))
+        tools.create_dir(os.path.join(self.dir_path, "hub"))
 
     def install_requirements(self):
         # Clone TensorRT-LLM repo
@@ -40,7 +40,7 @@ class LLMBenchmark:
     def download_models(self):
         for model_name in self.config['models']:
             if self.config['models'][model_name]['use_model'] and self.config['models'][model_name]['type'] == "nvidia":
-                snapshot_download(repo_id=model_name, cache_dir=f"{self.dir_path}/hub")
+                snapshot_download(repo_id=model_name, cache_dir=os.path.join(self.dir_path, "hub"))
 
     def prepare_datasets(self):
         for model_name in self.config['models']:
@@ -59,7 +59,7 @@ class LLMBenchmark:
                         max_osl = osl
                         max_dataset_path = f"{self.dir_path}/datasets/{name}_synthetic_{max_isl}_{max_osl}.txt"
 
-                    dataset_path = f"{self.dir_path}/datasets/{name}_synthetic_{isl}_{osl}.txt"
+                    dataset_path = os.path.join(self.dir_path, "datasets", f"{name}_synthetic_{isl}_{osl}.txt")
                     if not os.path.exists(dataset_path):
                         prepare_dataset_command = f'''
                             python3 {self.dir_path}/TensorRT-LLM/benchmarks/cpp/prepare_dataset.py \
@@ -75,7 +75,7 @@ class LLMBenchmark:
     
                         be2 = tools.run_cmd(prepare_dataset_command, shell=True, env=self.env)
 
-                if not os.path.exists(f"{self.dir_path}/engines/{model_name}"):
+                if not os.path.exists(os.path.join(self.dir_path, "engines", model_name)):
                     logger.info("Building engine for %s", model_name)
                     build_engine_command = f'''
                         trtllm-bench \
@@ -101,7 +101,7 @@ class LLMBenchmark:
 
                     logger.info("input/output: %s/%s...", isl, osl)
                     dataset_path = f"{self.dir_path}/datasets/{name}_synthetic_{isl}_{osl}.txt"
-                    results_path = f"{self.dir_path}/Outputs/results_{name}_{isl}_{osl}.txt"
+                    results_path = os.path.join(self.dir_path, "Outputs", f"results_{name}_{isl}_{osl}.txt")
 
                     run_benchmark_command = f'''
                         trtllm-bench \

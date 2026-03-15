@@ -90,7 +90,7 @@ class LLAMA3Pretraining:
         fig.text(0.5, 0.01, ";  ".join(annot), ha='center', fontsize=12, style='italic')
 
         # save to outputs folder
-        plot_path = f"Outputs/LLAMA3_{self.model_size}_Pretrain_Results"
+        plot_path = os.path.join("Outputs", f"LLAMA3_{self.model_size}_Pretrain_Results")
         plt.savefig(plot_path, dpi=300)
         logger.info("Training loss and time plot with steady state saved to %s", plot_path)
         tools.write_log(f"Training loss and time plot with steady state saved to {plot_path}") # print to log.txt
@@ -100,7 +100,7 @@ class LLAMA3Pretraining:
 
 
     def run(self):
-        log_path = f"Outputs/llama3_docker_output.txt" # log to separate file
+        log_path = os.path.join("Outputs", "llama3_docker_output.txt")
         tools.write_log(f"Pulling and launching NeMo container for {self.machine_name}.") # write to log file
         logger.info("Pulling and launching NeMo docker container for %s and logging at 'Outputs/log.txt'.", self.machine_name)
 
@@ -124,7 +124,7 @@ class LLAMA3Pretraining:
         ]
 
         # launch command and write to log file (this shows all info about epoch, training time, etc.)
-        with open("Outputs/llama3_docker_output.txt", "w") as file:
+        with open(os.path.join("Outputs", "llama3_docker_output.txt"), "w") as file:
             result = subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
 
         if result.returncode != 0:

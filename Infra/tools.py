@@ -7,7 +7,7 @@ import json
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-pwd = f"{_PROJECT_ROOT}/Outputs/log.txt"
+pwd = os.path.join(_PROJECT_ROOT, "Outputs", "log.txt")
 curr = _PROJECT_ROOT
 
 def run_cmd(cmd, *, shell=False, env=None, cwd=None, **kwargs):
@@ -77,7 +77,7 @@ def prettytable_to_markdown(table):
 
 def export_markdown(title, description, table = None):
     table = prettytable_to_markdown(table)
-    filename = f"{curr}/Outputs/{get_hostname()}_summary.md"
+    filename = os.path.join(curr, "Outputs", f"{get_hostname()}_summary.md")
     with open(filename, "a") as file:
         if title is not None:
             file.write(f"## {title}\n\n")

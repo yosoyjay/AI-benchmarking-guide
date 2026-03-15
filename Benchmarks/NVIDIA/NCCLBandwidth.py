@@ -29,8 +29,8 @@ class NCCLBandwidth:
             results = tools.run_cmd('make -j src.build', shell=True)
             os.chdir(current)
 
-        nccl_home = f"{current}/nccl/build"
-        ld_path = f"{current}/nccl/build/lib:{os.environ.get('LD_LIBRARY_PATH', '')}"
+        nccl_home = os.path.join(current, "nccl", "build")
+        ld_path = f"{os.path.join(current, 'nccl', 'build', 'lib')}:{os.environ.get('LD_LIBRARY_PATH', '')}"
         self.env = {**os.environ, 'NCCL_HOME': nccl_home, 'LD_LIBRARY_PATH': ld_path}
 
         path ='nccl-tests'

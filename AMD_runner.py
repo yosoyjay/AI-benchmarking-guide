@@ -40,7 +40,7 @@ def _detect_sku():
 
 
 def get_system_specs():
-    with open("Outputs/system_specs.txt", "w") as file:
+    with open(os.path.join("Outputs", "system_specs.txt"), "w") as file:
 
         results = subprocess.run("rocminfo | grep 'ROCk module version'", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if results.returncode == 0:

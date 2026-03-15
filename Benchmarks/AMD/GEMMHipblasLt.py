@@ -75,7 +75,7 @@ class GEMMHipBLAS:
                 tools.write_log(results.output.decode('utf-8'))
 
             try:
-                with open(f'{self.dir_path}/Outputs/GEMMHipBLAS_results.txt', 'r') as resFile:
+                with open(os.path.join(self.dir_path, 'Outputs', 'GEMMHipBLAS_results.txt'), 'r') as resFile:
                     table1 = PrettyTable()
                     table1.field_names = ["M","N","K","TFLOPS"]
                     for line in resFile:

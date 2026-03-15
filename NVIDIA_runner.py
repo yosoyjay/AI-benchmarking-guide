@@ -30,7 +30,7 @@ def get_system_specs(current, host_name):
         logger.error("nvidia-smi returned no GPU data")
         sys.exit(1)
     output = lines[1].split(",")
-    if not os.path.exists(f"{current}/Outputs/{host_name}_summary.md"):
+    if not os.path.exists(os.path.join(current, "Outputs", f"{host_name}_summary.md")):
         table = PrettyTable([" ", output[0]])
         if len(output) > 1:
             table.add_row(["VBIOS", output[1]])
