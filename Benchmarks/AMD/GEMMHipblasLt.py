@@ -66,18 +66,30 @@ class GEMMHipBLAS:
             results = self.container.exec_run(f'/bin/sh -c ' + '"' + hipblas_cmd + '"')
             tools.write_log(results.output.decode('utf-8'))
 
-        with open(self.dir_path + '/Outputs/GEMMHipBLAS_results.txt', 'r') as resFile:
+        try:
+            with open(self.dir_path + '/Outputs/GEMMHipBLAS_results.txt', 'r') as resFile:
+                table1 = PrettyTable()
+                table1.field_names = ["M","N","K","TFLOPS"]
+                for line in resFile:
+                    l = line.strip()
+                    if l and l[0] == "T":
+                        l = l.split(',')
+                        if len(l) >= 7:
+                            m = l[4]
+                            n = l[5]
+                            k = l[6]
+                            tflops = float(l[-3])/1000
+                            table1.add_row([m,n,k,tflops])
+                        else:
+                            print(f"Warning: unexpected format in GEMMHipBLAS results: {line.strip()}")
+        except FileNotFoundError:
+            print("Warning: GEMMHipBLAS_results.txt not found, skipping result table")
             table1 = PrettyTable()
             table1.field_names = ["M","N","K","TFLOPS"]
-            for line in resFile:
-                l = line.strip()
-                if l[0] == "T":
-                    l = l.split(',')
-                    m = l[4]
-                    n = l[5]
-                    k = l[6]
-                    tflops = float(l[-3])/1000
-                    table1.add_row([m,n,k,tflops])
+        except Exception as e:
+            print(f"Warning: error reading GEMMHipBLAS results: {e}")
+            table1 = PrettyTable()
+            table1.field_names = ["M","N","K","TFLOPS"]
 
         print(table1)
         tools.export_markdown("GEMM HipBLASLt", "The results shown below are with random initialization (best representation of real-life workloads) " + self.datatype +  ", and " + str(self.w) + " warmup iterations.", table1)

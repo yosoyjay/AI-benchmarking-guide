@@ -83,7 +83,8 @@ class LLMBenchmark:
                                 temp = rb1.output.decode('utf-8').split('\n')
                                 for line in temp:
                                     if "Throughput: " in line:
-                                        result = line.split(' ')[6]
+                                        parts = line.split(' ')
+                                        result = parts[6] if len(parts) > 6 else "unknown"
                                         self.table.add_row([str(input_size), str(output_size), str(tp_size), str(result)])
                 print(self.table)
                 tools.export_markdown(model_name, "Performance results with FP8 quantization.", self.table)
