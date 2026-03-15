@@ -12,6 +12,7 @@ class LLMBenchmark:
         self.dir_path = dir_path
         self.machine = machine
         self.table = None
+        self.env = {**os.environ, 'HF_HOME': dir_path}
 
         tools.create_dir(self.dir_path + "/datasets")
         tools.create_dir(self.dir_path + "/engines")
@@ -26,22 +27,20 @@ class LLMBenchmark:
             raise KeyError("no value found")
 
     def install_requirements(self):
-        os.environ['HF_HOME'] = self.dir_path
-        
         # Clone TensorRT-LLM repo
         if not os.path.exists(os.path.join(self.dir_path, 'TensorRT-LLM')):
             print("Cloning TensorRT-LLM repository from https://github.com/NVIDIA/TensorRT-LLM.git")
-            i4 = subprocess.run("git clone https://github.com/NVIDIA/TensorRT-LLM.git && cd TensorRT-LLM && git checkout v0.18.2", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            i4 = subprocess.run("git clone https://github.com/NVIDIA/TensorRT-LLM.git && cd TensorRT-LLM && git checkout v0.18.2", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
             tools.write_log(tools.check_error(i4))
 
             if not os.path.exists("/.dockerenv"):
                 # Install required packages
                 print("No Docker container detected. Installing tensorrt-llm")
-                i2 = subprocess.run("pip install tensorrt-llm==0.18.2", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                i2 = subprocess.run("pip install tensorrt-llm==0.18.2", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
                 tools.write_log(tools.check_error(i2))
-                i2 = subprocess.run("sudo apt update && sudo apt-get -y install libopenmpi-dev", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                i2 = subprocess.run("sudo apt update && sudo apt-get -y install libopenmpi-dev", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
                 tools.write_log(tools.check_error(i2))
-                i2 = subprocess.run("pip3 install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt-libs", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                i2 = subprocess.run("pip3 install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt-libs", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
                 tools.write_log(tools.check_error(i2))
 
     def download_models(self):
@@ -80,7 +79,7 @@ class LLMBenchmark:
                             --output-stdev=0 > {dataset_path}
                             '''
     
-                        be2 = subprocess.run(prepare_dataset_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                        be2 = subprocess.run(prepare_dataset_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
                         tools.write_log(tools.check_error(be2))
 
                 if not os.path.exists(self.dir_path + "/engines/" + model_name):
@@ -94,7 +93,7 @@ class LLMBenchmark:
                         --quantization {self.config['models'][model_name]['precision']}
                         '''
 
-                    be2 = subprocess.run(build_engine_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                    be2 = subprocess.run(build_engine_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
                     tools.write_log(tools.check_error(be2))
 
     def run_benchmark(self):
@@ -119,7 +118,7 @@ class LLMBenchmark:
                         --engine_dir {self.dir_path + "/engines/" + model_name + "/tp_" + str(tp) + "_pp_1"} > {results_path}
                         '''
 
-                    be2 = subprocess.run(run_benchmark_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                    be2 = subprocess.run(run_benchmark_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
                     self.extract_benchmark_info(results_path)
                     tools.write_log(tools.check_error(be2))
                 print(self.table)
