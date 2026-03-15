@@ -45,8 +45,8 @@ class TestBuildTable:
 
 class TestModuleConstants:
     def test_fio_tests_is_list(self) -> None:
-        assert isinstance(fio._FIO_TESTS, list)
-        assert len(fio._FIO_TESTS) == 8
+        assert isinstance(fio._DEFAULT_FIO_TESTS, list)
+        assert len(fio._DEFAULT_FIO_TESTS) == 8
 
     def test_run_is_callable(self) -> None:
         assert callable(fio.run)

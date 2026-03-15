@@ -88,7 +88,7 @@ class TestBuildTables:
     def test_smoke(self) -> None:
         tables = _build_tables(SAMPLE_OUTPUT)
         assert len(tables) == 3
-        assert "Device to Host" in tables[0][0]
+        assert "Device To Host" in tables[0][0]
 
     def test_missing_section_logs_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level("WARNING"):

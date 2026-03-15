@@ -205,6 +205,104 @@ The `LLMBenchmark.models` section lists available models. Set `"use_model": true
 
 The `LLAMA3Pretraining` section configures the NeMo container image, training script, and per-SKU model parallelism settings.
 
+### FIO (storage I/O)
+
+```json
+"FIO": {
+    "tests": [["read", "1M"], ["read", "512k"], ["read", "1k"],
+              ["write", "1M"], ["write", "512k"], ["write", "1k"],
+              ["randwrite", "1k"], ["randread", "1k"]],
+    "runtime": 300,
+    "numjobs": 4,
+    "size": "10G",
+    "iodepth": 255,
+    "ioengine": "libaio",
+    "direct": 1
+}
+```
+
+Each entry in `tests` is a `[rw_pattern, block_size]` pair. Other fields map directly to `fio` command-line options.
+
+### NCCL Bandwidth
+
+```json
+"NCCLBandwidth": {
+    "begin_size": "8",
+    "end_size": "8G",
+    "factor": "2",
+    "num_iters": "40"
+}
+```
+
+Controls the `-b`, `-e`, `-f`, and `-n` flags passed to `all_reduce_perf`. GPU count is auto-detected.
+
+### NV Bandwidth
+
+```json
+"NVBandwidth": {
+    "test_names": [
+        "device_to_host_memcpy_ce",
+        "host_to_device_memcpy_ce",
+        "device_to_device_bidirectional_memcpy_read_ce"
+    ]
+}
+```
+
+List of `nvbandwidth -t` test names to run. See the [nvbandwidth repo](https://github.com/NVIDIA/nvbandwidth) for all available tests.
+
+### Multichase
+
+```json
+"Multichase": {
+    "stride": "512",
+    "memory": "1g",
+    "iterations": "120"
+}
+```
+
+Passed as `-s`, `-m`, `-n` to the multichase binary.
+
+### hipBLASLt GEMM
+
+```json
+"GEMMHipBLAS": {
+    "m_dims": [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816],
+    "n_dims": [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192],
+    "k_dims": [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768],
+    "datatype": "FP8",
+    "warmup": 10000,
+    "iters": 2000,
+    "cold_iters": 100
+}
+```
+
+The three dimension arrays must be the same length. Each index defines one GEMM problem (M, N, K). `iters` and `cold_iters` control hipblaslt-bench iteration counts.
+
+### RCCL Bandwidth
+
+```json
+"RCCLBandwidth": {
+    "algorithms": ["Tree", "Ring", "NVLS", "NVLSTree"],
+    "begin_size": "8",
+    "end_size": "8G",
+    "factor": "2",
+    "num_gpus": "8",
+    "num_iters": "40"
+}
+```
+
+Controls the algorithms tested and the `-b`, `-e`, `-f`, `-g`, `-n` flags passed to `all_reduce_perf`.
+
+### TransferBench
+
+```json
+"TransferBench": {
+    "config_file": "benchmarks/amd/transferbench.cfg"
+}
+```
+
+Path to the TransferBench `.cfg` file, relative to the repository root.
+
 ## Storage
 
 - Clone this repository onto a disk with at least **5 TB** of free space if you plan to run LLM benchmarks (model weights are large).

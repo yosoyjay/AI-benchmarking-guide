@@ -13,7 +13,7 @@ from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
-_FIO_TESTS = [
+_DEFAULT_FIO_TESTS = [
     ["read", "1M"],
     ["read", "512k"],
     ["read", "1k"],
@@ -58,8 +58,19 @@ def _build_table(rows: list[tuple[str, str, str]]) -> PrettyTable:
 # ---------------------------------------------------------------------------
 
 
-def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[tuple[str, str, str]] | None:
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> list[tuple[str, str, str]] | None:
     """Run FIO storage benchmarks, parse and report results."""
+    config = tools.load_benchmark_config(config_path, "FIO")
+    fio_tests = [tuple(t) for t in config.get("tests", _DEFAULT_FIO_TESTS)]
+    runtime = config.get("runtime", 300)
+    numjobs = config.get("numjobs", 4)
+    size = config.get("size", "10G")
+    iodepth = config.get("iodepth", 255)
+    ioengine = config.get("ioengine", "libaio")
+    direct = config.get("direct", 1)
+
     if ctx is not None:
         fio_dir = str(ctx.run_dir)
     else:
@@ -67,21 +78,21 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
 
     logger.info("Running FIO Tests...")
     rows = []
-    for rw, bs in _FIO_TESTS:
+    for rw, bs in fio_tests:
         cmd = [
             "fio",
             f"--bs={bs}",
-            "--ioengine=libaio",
-            "--iodepth=255",
+            f"--ioengine={ioengine}",
+            f"--iodepth={iodepth}",
             f"--directory={fio_dir}",
-            "--direct=1",
-            "--runtime=300",
-            "--numjobs=4",
+            f"--direct={direct}",
+            f"--runtime={runtime}",
+            f"--numjobs={numjobs}",
             f"--rw={rw}",
             "--name=test",
             "--group_reporting",
             "--gtod_reduce=1",
-            "--size=10G",
+            f"--size={size}",
         ]
         if ctx is not None:
             result = capture_cmd(cmd, ctx=ctx, suffix=f"_{rw}_{bs}")

@@ -18,11 +18,11 @@ TEST_NAMES = [
     "host_to_device_memcpy_ce",
     "device_to_device_bidirectional_memcpy_read_ce",
 ]
-_LABELS = [
-    "Device to Host memcpy",
-    "Host to Device memcpy",
-    "Device to Device Bidirectional memcpy Total",
-]
+
+
+def _derive_label(test_name: str) -> str:
+    """Derive a human-readable label from a test name."""
+    return test_name.replace("_", " ").title()
 
 
 # ---------------------------------------------------------------------------
@@ -30,15 +30,17 @@ _LABELS = [
 # ---------------------------------------------------------------------------
 
 
-def parse_sections(text: str) -> dict[str, str]:
+def parse_sections(text: str, test_names: list[str] | None = None) -> dict[str, str]:
     """Split nvbandwidth output into {test_name: section_text} dict."""
+    if test_names is None:
+        test_names = TEST_NAMES
     sections = {}
     current_name = None
     current_lines = []
     for line in text.splitlines():
         stripped = line.strip()
         found = None
-        for name in TEST_NAMES:
+        for name in test_names:
             if stripped == name:
                 found = name
                 break
@@ -71,11 +73,14 @@ def extract_summary_table(section_text: str) -> list[list[str | float]]:
     return table_rows
 
 
-def _build_tables(text: str) -> list[tuple[str, PrettyTable]]:
+def _build_tables(text: str, test_names: list[str] | None = None) -> list[tuple[str, PrettyTable]]:
     """Parse output and return list of (label, PrettyTable) pairs."""
-    sections = parse_sections(text)
+    if test_names is None:
+        test_names = TEST_NAMES
+    sections = parse_sections(text, test_names)
+    labels = [_derive_label(name) for name in test_names]
     tables = []
-    for name, label in zip(TEST_NAMES, _LABELS):
+    for name, label in zip(test_names, labels):
         if name not in sections:
             logger.warning("section '%s' not found in nvbandwidth output", name)
             continue
@@ -114,26 +119,25 @@ def _build(work_dir: str) -> None:
         tools.run_cmd(["sudo", "./debian_install.sh"], cwd=repo_dir)
 
 
-def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[tuple[str, PrettyTable]] | None:
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> list[tuple[str, PrettyTable]] | None:
     """Clone, build, run nvbandwidth, parse and report results."""
+    config = tools.load_benchmark_config(config_path, "NVBandwidth")
+    test_names = config.get("test_names", TEST_NAMES)
+
     _build(work_dir)
 
     repo_dir = os.path.join(work_dir, "nvbandwidth")
     logger.info("Running NVBandwidth...")
-    cmd = [
-        "./nvbandwidth",
-        "-t",
-        "device_to_host_memcpy_ce",
-        "host_to_device_memcpy_ce",
-        "device_to_device_bidirectional_memcpy_read_ce",
-    ]
+    cmd = ["./nvbandwidth", "-t"] + test_names
     if ctx is not None:
         result = capture_cmd(cmd, ctx=ctx, cwd=repo_dir)
     else:
         result = tools.run_cmd(cmd, cwd=repo_dir)
     text = result.stdout.decode("utf-8")
 
-    tables = _build_tables(text)
+    tables = _build_tables(text, test_names)
 
     if ctx is not None:
         return tables

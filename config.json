@@ -81,6 +81,64 @@
         }
     },
     
+    "FIO": {
+        "tests": [
+            ["read", "1M"], ["read", "512k"], ["read", "1k"],
+            ["write", "1M"], ["write", "512k"], ["write", "1k"],
+            ["randwrite", "1k"], ["randread", "1k"]
+        ],
+        "runtime": 300,
+        "numjobs": 4,
+        "size": "10G",
+        "iodepth": 255,
+        "ioengine": "libaio",
+        "direct": 1
+    },
+
+    "NCCLBandwidth": {
+        "begin_size": "8",
+        "end_size": "8G",
+        "factor": "2",
+        "num_iters": "40"
+    },
+
+    "NVBandwidth": {
+        "test_names": [
+            "device_to_host_memcpy_ce",
+            "host_to_device_memcpy_ce",
+            "device_to_device_bidirectional_memcpy_read_ce"
+        ]
+    },
+
+    "Multichase": {
+        "stride": "512",
+        "memory": "1g",
+        "iterations": "120"
+    },
+
+    "GEMMHipBLAS": {
+        "m_dims": [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816],
+        "n_dims": [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192],
+        "k_dims": [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768],
+        "datatype": "FP8",
+        "warmup": 10000,
+        "iters": 2000,
+        "cold_iters": 100
+    },
+
+    "RCCLBandwidth": {
+        "algorithms": ["Tree", "Ring", "NVLS", "NVLSTree"],
+        "begin_size": "8",
+        "end_size": "8G",
+        "factor": "2",
+        "num_gpus": "8",
+        "num_iters": "40"
+    },
+
+    "TransferBench": {
+        "config_file": "benchmarks/amd/transferbench.cfg"
+    },
+
     "LLAMA3Pretraining": {
         "mount_path": ".",
         "training_script": "benchmarks/nvidia/llama3_recipe.py",

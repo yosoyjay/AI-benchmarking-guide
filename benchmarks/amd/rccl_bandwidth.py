@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 _RCCL_IMAGE = "ai-bench/amd-rccl:latest"
 
-_ALGOS = ["Tree", "Ring", "NVLS", "NVLSTree"]
+_DEFAULT_ALGOS = ["Tree", "Ring", "NVLS", "NVLSTree"]
 
 
 # ---------------------------------------------------------------------------
@@ -55,8 +55,18 @@ _DESCRIPTION = (
 )
 
 
-def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict[str, list[dict[str, str]]] | None:
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> dict[str, list[dict[str, str]]] | None:
     """Run RCCL AllReduce inside Docker, parse and report."""
+    config = tools.load_benchmark_config(config_path, "RCCLBandwidth")
+    algos = config.get("algorithms", _DEFAULT_ALGOS)
+    begin_size = config.get("begin_size", "8")
+    end_size = config.get("end_size", "8G")
+    factor = config.get("factor", "2")
+    num_gpus = config.get("num_gpus", "8")
+    num_iters = config.get("num_iters", "40")
+
     all_parsed = {}
     with AmdContainer(_RCCL_IMAGE, work_dir, entrypoint="/bin/bash") as container:
         logger.info("Running RCCL AllReduce...")
@@ -64,8 +74,11 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict
         sizes = []
         bandwidth_columns = []
 
-        for algo in _ALGOS:
-            cmd = f"NCCL_ALGO={algo} {perf_bin} " f"-b 8 -e 8G -f 2 -g 8 -n 40"
+        for algo in algos:
+            cmd = (
+                f"NCCL_ALGO={algo} {perf_bin} "
+                f"-b {begin_size} -e {end_size} -f {factor} -g {num_gpus} -n {num_iters}"
+            )
             if ctx is not None:
                 stdout, stderr, exit_code = capture_docker(
                     container, ["/bin/sh", "-c", cmd], ctx=ctx, suffix=f"_{algo.lower()}"
@@ -91,7 +104,7 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict
     if ctx is not None:
         return all_parsed
 
-    table = _build_table(sizes, bandwidth_columns, _ALGOS)
+    table = _build_table(sizes, bandwidth_columns, algos)
     print(table)
     tools.export_markdown("RCCL Bandwidth", _DESCRIPTION, table)
     return None

@@ -82,8 +82,16 @@ def _build(work_dir: str, env: dict[str, str] | None) -> tuple[str, dict[str, st
     return tests_dir, env
 
 
-def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[dict[str, str]] | None:
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> list[dict[str, str]] | None:
     """Clone, build, run NCCL all-reduce, parse and report results."""
+    config = tools.load_benchmark_config(config_path, "NCCLBandwidth")
+    begin_size = config.get("begin_size", "8")
+    end_size = config.get("end_size", "8G")
+    factor = config.get("factor", "2")
+    num_iters = config.get("num_iters", "40")
+
     tests_dir, env = _build(work_dir, None)
 
     num_gpus = _get_gpu_count()
@@ -95,15 +103,15 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
     cmd = [
         all_reduce_bin,
         "-b",
-        "8",
+        str(begin_size),
         "-e",
-        "8G",
+        str(end_size),
         "-f",
-        "2",
+        str(factor),
         "-g",
         str(num_gpus),
         "-n",
-        "40",
+        str(num_iters),
     ]
     if ctx is not None:
         result = capture_cmd(cmd, ctx=ctx, env=run_env)

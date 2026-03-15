@@ -66,15 +66,20 @@ def _build(work_dir: str) -> None:
 
 
 def run(
-    work_dir: str, machine_name: str, ctx: RunContext | None = None
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
 ) -> tuple[list[str], list[dict[str, str | float]]] | None:
     """Clone, build, run multichase, and report raw output."""
+    config = tools.load_benchmark_config(config_path, "Multichase")
+    stride = config.get("stride", "512")
+    memory = config.get("memory", "1g")
+    iterations = config.get("iterations", "120")
+
     _build(work_dir)
 
     logger.info("Running Multichase...")
     multichase_bin = os.path.join(work_dir, "multichase", "multichase")
     script_path = os.path.join(work_dir, "benchmarks", "nvidia", "run_multichase.sh")
-    cmd = [script_path, multichase_bin]
+    cmd = [script_path, multichase_bin, "-s", str(stride), "-m", str(memory), "-n", str(iterations)]
     if ctx is not None:
         result = capture_cmd(cmd, ctx=ctx)
     else:

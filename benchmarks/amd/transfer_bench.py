@@ -69,13 +69,18 @@ def _build(work_dir: str) -> None:
         tools.run_cmd(["make"], cwd=build_dir)
 
 
-def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict[str, str] | None:
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> dict[str, str] | None:
     """Clone, build, run TransferBench, parse and report results."""
+    config = tools.load_benchmark_config(config_path, "TransferBench")
+    cfg_file = config.get("config_file", "benchmarks/amd/transferbench.cfg")
+
     _build(work_dir)
 
     logger.info("Running TransferBench...")
     tb_bin = os.path.join(work_dir, "TransferBench", "build", "TransferBench")
-    cfg = os.path.join(work_dir, "benchmarks", "amd", "transferbench.cfg")
+    cfg = os.path.join(work_dir, cfg_file)
     cmd = ["sudo", tb_bin, cfg]
     if ctx is not None:
         result = capture_cmd(cmd, ctx=ctx)

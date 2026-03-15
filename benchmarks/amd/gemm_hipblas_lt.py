@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 _HIPBLAS_IMAGE = "ai-bench/amd-hipblas:latest"
 
-_M_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
-_N_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
-_K_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
+_DEFAULT_M_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
+_DEFAULT_N_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
+_DEFAULT_K_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ _K_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
 # ---------------------------------------------------------------------------
 
 
-def _build_hipblas_yaml(m: int, n: int, k: int) -> str:
+def _build_hipblas_yaml(m: int, n: int, k: int, iters: int = 2000, cold_iters: int = 100) -> str:
     """Construct the YAML config line for hipblaslt-bench.
 
     Produces the single-line YAML that hipblaslt-bench expects via
@@ -34,7 +34,7 @@ def _build_hipblas_yaml(m: int, n: int, k: int) -> str:
         f"compute_type: c_f32_r, "
         f"M: {m}, N: {n}, K: {k}, lda: {k}, ldb: {k}, ldc: {m}, ldd: {m}, "
         f"alpha: 1, beta: 0, scale_type: f32_r, "
-        f"iters: 2000, cold_iters: 100, "
+        f"iters: {iters}, cold_iters: {cold_iters}, "
         f"initialization: trig_float,rotating: 512}}"
     )
 
@@ -83,18 +83,29 @@ def _build_table(rows: list[dict[str, str | float]]) -> PrettyTable:
 # Orchestration
 # ---------------------------------------------------------------------------
 
-_DATATYPE = "FP8"
-_WARMUP = 10000
+_DEFAULT_DATATYPE = "FP8"
+_DEFAULT_WARMUP = 10000
 
 
-def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[dict[str, str | float]] | None:
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> list[dict[str, str | float]] | None:
     """Run HipBLASLt GEMM inside Docker, parse and report."""
+    config = tools.load_benchmark_config(config_path, "GEMMHipBLAS")
+    m_dims = config.get("m_dims", _DEFAULT_M_DIMS)
+    n_dims = config.get("n_dims", _DEFAULT_N_DIMS)
+    k_dims = config.get("k_dims", _DEFAULT_K_DIMS)
+    datatype = config.get("datatype", _DEFAULT_DATATYPE)
+    warmup = config.get("warmup", _DEFAULT_WARMUP)
+    iters = config.get("iters", 2000)
+    cold_iters = config.get("cold_iters", 100)
+
     with AmdContainer(_HIPBLAS_IMAGE, work_dir, entrypoint="/bin/bash") as container:
         logger.info("Running HipBLAS...")
         bench_bin = "/opt/hipBLASLt/build/release/clients/staging/hipblaslt-bench"
         rows = []
-        for m, n, k in zip(_M_DIMS, _N_DIMS, _K_DIMS):
-            yaml_cfg = _build_hipblas_yaml(m, n, k)
+        for m, n, k in zip(m_dims, n_dims, k_dims):
+            yaml_cfg = _build_hipblas_yaml(m, n, k, iters=iters, cold_iters=cold_iters)
             cmd = f'{bench_bin} --device 0 --flush --yaml - <<< "{yaml_cfg}"' f' | grep -B 1 "T,N,0"'
             if ctx is not None:
                 stdout, stderr, exit_code = capture_docker(
@@ -108,14 +119,14 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
             rows.extend(parse_hipblas_results(output))
 
     if ctx is not None:
-        ctx.extra["datatype"] = _DATATYPE
+        ctx.extra["datatype"] = datatype
         return rows
 
     table = _build_table(rows)
     print(table)
     tools.export_markdown(
         "GEMM HipBLASLt",
-        f"The results shown below are with random initialization (best representation of real-life workloads) {_DATATYPE}, and {_WARMUP} warmup iterations.",
+        f"The results shown below are with random initialization (best representation of real-life workloads) {datatype}, and {warmup} warmup iterations.",
         table,
     )
     return None
