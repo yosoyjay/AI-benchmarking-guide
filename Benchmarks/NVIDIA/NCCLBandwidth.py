@@ -9,7 +9,7 @@ class NCCLBandwidth:
         self.machine_name = machine
         self.buffer = []
         self.algo = "NVLS"
-        self.env = None
+        self.env = dict(os.environ)
 
     def build(self):
         current = os.getcwd()
