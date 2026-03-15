@@ -43,6 +43,30 @@ class TestParseHipblasResults:
         assert rows == []
 
 
+class TestBuildHipblasYaml:
+    def test_substitutes_m_n_k(self):
+        yaml = gemm_hipblas_lt._build_hipblas_yaml(1024, 2048, 4096)
+        assert "M: 1024" in yaml
+        assert "N: 2048" in yaml
+        assert "K: 4096" in yaml
+
+    def test_lda_equals_k(self):
+        yaml = gemm_hipblas_lt._build_hipblas_yaml(1024, 2048, 4096)
+        assert "lda: 4096" in yaml
+
+    def test_ldc_equals_m(self):
+        yaml = gemm_hipblas_lt._build_hipblas_yaml(1024, 2048, 4096)
+        assert "ldc: 1024" in yaml
+
+    def test_returns_yaml_list_item(self):
+        yaml = gemm_hipblas_lt._build_hipblas_yaml(1, 2, 3)
+        assert yaml.startswith("- {")
+
+    def test_contains_matmul_function(self):
+        yaml = gemm_hipblas_lt._build_hipblas_yaml(1, 2, 3)
+        assert "function: matmul" in yaml
+
+
 class TestBuildTable:
     def test_smoke(self):
         rows = [{"m": "1024", "n": "1024", "k": "1024", "tflops": 345.67}]

@@ -24,6 +24,23 @@ _K_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
 # ---------------------------------------------------------------------------
 
 
+def _build_hipblas_yaml(m, n, k):
+    """Construct the YAML config line for hipblaslt-bench.
+
+    Produces the single-line YAML that hipblaslt-bench expects via
+    ``--yaml -``, with lda=k, ldb=k, ldc=m, ldd=m.
+    """
+    return (
+        f"- {{function: matmul, transA: T, transB: N, "
+        f"a_type: f8_r, b_type: f8_r, c_type: f16_r, d_type: f16_r, "
+        f"compute_type: c_f32_r, "
+        f"M: {m}, N: {n}, K: {k}, lda: {k}, ldb: {k}, ldc: {m}, ldd: {m}, "
+        f"alpha: 1, beta: 0, scale_type: f32_r, "
+        f"iters: 2000, cold_iters: 100, "
+        f"initialization: trig_float,rotating: 512}}"
+    )
+
+
 def parse_hipblas_results(text):
     """Parse HipBLASLt results file content into row dicts.
 
