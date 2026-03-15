@@ -148,7 +148,8 @@ def run(
                 k,
                 result.returncode,
             )
-            tools.write_log(tools.check_error(result))
+            if ctx is None:
+                tools.write_log(tools.check_error(result))
             continue
         parsed = parse_cublaslt_line(result.stdout.decode("utf-8"))
         if parsed:
@@ -158,7 +159,8 @@ def run(
                 "Skipping cublaslt_gemm result with unexpected format: %s",
                 result.stdout.decode("utf-8").strip(),
             )
-        tools.write_log(tools.check_error(result))
+        if ctx is None:
+            tools.write_log(tools.check_error(result))
 
     if ctx is not None:
         ctx.extra["datatype"] = datatype

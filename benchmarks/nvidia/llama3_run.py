@@ -85,14 +85,14 @@ def _plot_results(
     loss_idx, loss_ss = compute_steady_state(train_losses, std_thresh=0.1)
 
     if time_ss is not None and time_idx is not None:
-        tools.write_log(f"Time steady-state: {time_ss:.4f}s starting at step {global_steps[time_idx]}")
+        logger.info("Time steady-state: %.4fs starting at step %d", time_ss, global_steps[time_idx])
     else:
-        tools.write_log("No steady-state found for time.")
+        logger.info("No steady-state found for time.")
 
     if loss_ss is not None and loss_idx is not None:
-        tools.write_log(f"Loss steady-state: {loss_ss:.4f} starting at step {global_steps[loss_idx]}")
+        logger.info("Loss steady-state: %.4f starting at step %d", loss_ss, global_steps[loss_idx])
     else:
-        tools.write_log("No steady-state found for loss.")
+        logger.info("No steady-state found for loss.")
 
     # create grid for both loss and time plots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 10))
@@ -126,7 +126,6 @@ def _plot_results(
     plot_path = os.path.join(output_dir, f"LLAMA3_{model_size}_Pretrain_Results")
     plt.savefig(plot_path, dpi=300)
     logger.info("Training loss and time plot with steady state saved to %s", plot_path)
-    tools.write_log(f"Training loss and time plot with steady state saved to {plot_path}")
     plt.close()
 
     return time_ss, loss_ss
@@ -148,16 +147,13 @@ def run(
     training_script = config.get("training_script", "benchmarks/nvidia/llama3_recipe.py")
     docker_image = config.get("docker_image", _DEFAULT_NEMO_IMAGE)
 
-    log_path = os.path.join("Outputs", "llama3_docker_output.txt")
-    tools.write_log(f"Pulling and launching NeMo container for {machine_name}.")
-    logger.info("Pulling and launching NeMo docker container for %s and logging at 'Outputs/log.txt'.", machine_name)
+    logger.info("Pulling and launching NeMo docker container for %s.", machine_name)
 
     if model_size == "3b":
         time = 2
     else:
         time = 4
 
-    tools.write_log(f"Pretraining will finish in {time} hours.")
     logger.info("Pretraining will finish in %d hours.", time)
 
     command = [
@@ -196,7 +192,8 @@ def run(
         return time_ss, loss_ss
 
     # Legacy path
-    with open(os.path.join("Outputs", "llama3_docker_output.txt"), "w") as file:
+    log_path = os.path.join("Outputs", "llama3_docker_output.txt")
+    with open(log_path, "w") as file:
         proc = subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
 
     if proc.returncode != 0:
