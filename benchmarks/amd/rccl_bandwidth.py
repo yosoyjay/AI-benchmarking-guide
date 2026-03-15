@@ -1,7 +1,6 @@
 """RCCL AllReduce bandwidth benchmark (AMD ROCm, Docker-based)."""
 
 import logging
-import os
 
 from prettytable import PrettyTable
 
@@ -10,9 +9,7 @@ from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
 
-_RCCL_PYTORCH_IMAGE = "rocm/pytorch:rocm6.2.3_ubuntu22.04_py3.10_pytorch_release_2.3.0_triton_llvm_reg_issue"
-_RCCL_REPO = "https://github.com/ROCm/rccl.git"
-_RCCL_TESTS_REPO = "https://github.com/ROCm/rccl-tests.git"
+_RCCL_IMAGE = "ai-bench/amd-rccl:latest"
 
 _ALGOS = ["Tree", "Ring", "NVLS", "NVLSTree"]
 
@@ -57,57 +54,11 @@ _DESCRIPTION = (
 )
 
 
-def _build(container, work_dir):
-    """Clone and build RCCL + rccl-tests inside the container."""
-    rccl_dir = os.path.join(work_dir, "rccl")
-    if not os.path.isdir(rccl_dir):
-        logger.info("Building RCCL Library...")
-        res = container.exec_run(
-            ["git", "clone", _RCCL_REPO, rccl_dir],
-            stderr=True,
-        )
-        if res.exit_code != 0:
-            tools.write_log(res.output.decode("utf-8"))
-
-        res = container.exec_run(
-            ["/bin/sh", "-c", f"cd {rccl_dir} && cmake . && make"],
-            stderr=True,
-        )
-        if res.exit_code != 0:
-            tools.write_log(res.output.decode("utf-8"))
-
-    tests_dir = os.path.join(work_dir, "rccl-tests")
-    if not os.path.isdir(tests_dir):
-        logger.info("Building RCCL Tests...")
-        res = container.exec_run(
-            ["git", "clone", _RCCL_TESTS_REPO, tests_dir],
-            stderr=True,
-        )
-        if res.exit_code != 0:
-            tools.write_log(res.output.decode("utf-8"))
-
-        make_cmd = (
-            f"cd {tests_dir} && "
-            f"make HIP_HOME=/opt/rocm NCCL_HOME={rccl_dir} "
-            f"CUSTOM_RCCL_LIB={rccl_dir}/librccl.so && "
-            f"make MPI=1 MPI_HOME=/opt/ompi HIP_HOME=/opt/rocm "
-            f"NCCL_HOME={rccl_dir}"
-        )
-        res = container.exec_run(
-            ["/bin/sh", "-c", make_cmd],
-            stderr=True,
-        )
-        if res.exit_code != 0:
-            tools.write_log(res.output.decode("utf-8"))
-
-
 def run(work_dir, machine_name):
-    """Clone, build, run RCCL AllReduce inside Docker, parse and report."""
-    with AmdContainer(_RCCL_PYTORCH_IMAGE, work_dir, entrypoint="/bin/bash") as container:
-        _build(container, work_dir)
-
+    """Run RCCL AllReduce inside Docker, parse and report."""
+    with AmdContainer(_RCCL_IMAGE, work_dir, entrypoint="/bin/bash") as container:
         logger.info("Running RCCL AllReduce...")
-        perf_bin = os.path.join(work_dir, "rccl-tests", "build", "all_reduce_perf")
+        perf_bin = "/opt/rccl-tests/build/all_reduce_perf"
         sizes = []
         bandwidth_columns = []
 

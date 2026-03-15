@@ -50,11 +50,7 @@ class TestBuildTable:
 
 class TestModuleConstants:
     def test_image_constant(self):
-        assert hasattr(rccl_bandwidth, "_RCCL_PYTORCH_IMAGE")
-
-    def test_repos(self):
-        assert "rccl" in rccl_bandwidth._RCCL_REPO
-        assert "rccl-tests" in rccl_bandwidth._RCCL_TESTS_REPO
+        assert "amd-rccl" in rccl_bandwidth._RCCL_IMAGE
 
     def test_run_is_callable(self):
         assert callable(rccl_bandwidth.run)
