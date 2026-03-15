@@ -47,7 +47,7 @@ def get_system_specs():
             cuda_version = "unknown"
         table.add_row(["CUDA version", cuda_version])
 
-        if output[0].strip() != "NVIDIA Graphics Device" or "GB200" in output[0]:
+        if output[0].strip() != "NVIDIA Graphics Device":
             results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             if results.returncode == 0 and results.stdout:
                 parts = results.stdout.decode('utf-8').strip().split("\t")
