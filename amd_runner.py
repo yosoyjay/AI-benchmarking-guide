@@ -112,10 +112,7 @@ def run_GEMMHipBLAS(machine_name, current):
 
 
 def run_RCCLBandwidth(machine_name, current):
-    test = RCCL.RCCLBandwidth("config.json", current, machine_name)
-    test.create_container()
-    test.build()
-    test.run()
+    RCCL.run(work_dir=current, machine_name=machine_name)
 
 
 def run_FlashAttention(machine_name, current):
