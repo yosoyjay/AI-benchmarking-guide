@@ -117,3 +117,37 @@ def parse_babelstream_output(raw_output):
         if len(tokens) >= 2 and tokens[0] in BABELSTREAM_OPS:
             results.append([tokens[0], tokens[1]])
     return results
+
+
+def summarize_babelstream(buffer, *, divisor, units, title, description):
+    """Build a PrettyTable from BabelStream run buffers.
+
+    Returns the table, or None if no valid data was collected.
+    """
+    import statistics
+    from prettytable import PrettyTable
+
+    ops = {name: [] for name in BABELSTREAM_OPS}
+    for log in buffer:
+        if len(log) < 5:
+            print(f"Warning: BabelStream returned {len(log)} operations (expected 5), skipping run")
+            continue
+        for idx, name in enumerate(BABELSTREAM_OPS):
+            ops[name].append(float(log[idx][1]))
+
+    if not ops["Copy"]:
+        print("Warning: all BabelStream runs produced incomplete output, no results to report")
+        return None
+
+    table = PrettyTable()
+    table.field_names = ["Operation", f"Min ({units})", f"Max ({units})", f"Mean ({units})"]
+    for name in BABELSTREAM_OPS:
+        values = ops[name]
+        mn = round(min(values) / divisor, 2)
+        mx = round(max(values) / divisor, 2)
+        mean = round(statistics.mean(values) / divisor, 2)
+        table.add_row([name, mn, mx, mean])
+
+    print(table)
+    export_markdown(title, description, table)
+    return table

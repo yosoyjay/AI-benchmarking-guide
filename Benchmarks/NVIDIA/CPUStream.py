@@ -1,9 +1,7 @@
 import json
 import os
-import statistics
 import time
 from Infra import tools
-from prettytable import PrettyTable
 
 class CPUStream:
     def __init__(self, path:str, machine: str):
@@ -79,45 +77,11 @@ class CPUStream:
         os.chdir(current)
         self.save_results()
 
-    def process_stats(self, results):
-        mean = statistics.mean(results)/1000
-        maximum = max(results)/1000
-        minimum = min(results)/1000
-        return [round(minimum, 2), round(maximum, 2), round(mean, 2)]
-    
-
     def save_results(self):
-        copy = ["Copy"]
-        mul = ["Mul"]
-        add = ["Add"]
-        triad = ["Triad"]
-        dot = ["Dot"]
-        for log in self.buffer:
-            if len(log) < 5:
-                print(f"Warning: BabelStream returned {len(log)} operations (expected 5), skipping run")
-                continue
-            copy.append(float(log[0][1]))
-            mul.append(float(log[1][1]))
-            add.append(float(log[2][1]))
-            triad.append(float(log[3][1]))
-            dot.append(float(log[4][1]))
-
-        if len(copy) == 1:
-            print("Warning: all BabelStream runs produced incomplete output, no results to report")
-            return
-
-        copy[1:] = self.process_stats(copy[1:])
-        mul[1:] = self.process_stats(mul[1:])
-        add[1:] = self.process_stats(add[1:])
-        triad[1:] = self.process_stats(triad[1:])
-        dot[1:] = self.process_stats(dot[1:])
-        
-        table1 = PrettyTable()
-        table1.field_names = ["Operation","Min (GB/s)", "Max (GB/s)", "Mean (GB/s)"]
-        table1.add_row(copy)
-        table1.add_row(mul)
-        table1.add_row(add)
-        table1.add_row(triad)
-        table1.add_row(dot)
-        print(table1)
-        tools.export_markdown("CPU STREAM", "CPU STREAM Results", table1)
+        tools.summarize_babelstream(
+            self.buffer,
+            divisor=1_000,
+            units="GB/s",
+            title="CPU STREAM",
+            description="CPU STREAM Results",
+        )
