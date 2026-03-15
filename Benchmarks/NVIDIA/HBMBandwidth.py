@@ -104,6 +104,9 @@ class HBMBandwidth:
         triad = ["Triad"]
         dot = ["Dot"]
         for log in self.buffer:
+            if len(log) < 5:
+                print(f"Warning: BabelStream returned {len(log)} operations (expected 5), skipping run")
+                continue
             copy.append(float(log[0][1]))
             mul.append(float(log[1][1]))
             add.append(float(log[2][1]))
