@@ -104,9 +104,7 @@ def get_system_specs():
 
 
 def run_TransferBench(machine_name, current):
-    test = TB.TransferBench("config.json", current, machine_name)
-    test.build()
-    test.run()
+    TB.run(work_dir=current, machine_name=machine_name)
 
 
 def run_GEMMHipBLAS(machine_name, current):
