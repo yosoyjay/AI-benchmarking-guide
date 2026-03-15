@@ -114,12 +114,8 @@ def run_FIO(sku_name):
     FIO.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
-def run_LLMBenchmark(sku_name, current):
-    test = llmb.LLMBenchmark("config.json", current, sku_name)
-    test.install_requirements()
-    test.prepare_datasets()
-    test.download_models()
-    test.run_benchmark()
+def run_LLMBenchmark(sku_name):
+    llmb.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_LLAMA3Pretrain(sku_name, model_size="8b"):
@@ -173,7 +169,7 @@ def main():
         "multichase": lambda: run_Multichase(sku_name),
         "cpustream": lambda: run_CPUStream(sku_name),
         "fio": lambda: run_FIO(sku_name),
-        "llm": lambda: run_LLMBenchmark(sku_name, current),
+        "llm": lambda: run_LLMBenchmark(sku_name),
         "llama_8b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "8b"),
         "llama_3b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "3b"),
     }
