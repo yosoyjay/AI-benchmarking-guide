@@ -56,38 +56,47 @@ def _build_table(rows):
 # ---------------------------------------------------------------------------
 
 
-def run(work_dir, machine_name):
+def run(work_dir, machine_name, ctx=None):
     """Run FIO storage benchmarks, parse and report results."""
     output_dir = os.path.join(work_dir, "Outputs")
 
     logger.info("Running FIO Tests...")
     rows = []
     for rw, bs in _FIO_TESTS:
-        result = subprocess.run(
-            [
-                "fio",
-                f"--bs={bs}",
-                "--ioengine=libaio",
-                "--iodepth=255",
-                f"--directory={output_dir}",
-                "--direct=1",
-                "--runtime=300",
-                "--numjobs=4",
-                f"--rw={rw}",
-                "--name=test",
-                "--group_reporting",
-                "--gtod_reduce=1",
-                "--size=10G",
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        cmd = [
+            "fio",
+            f"--bs={bs}",
+            "--ioengine=libaio",
+            "--iodepth=255",
+            f"--directory={output_dir}",
+            "--direct=1",
+            "--runtime=300",
+            "--numjobs=4",
+            f"--rw={rw}",
+            "--name=test",
+            "--group_reporting",
+            "--gtod_reduce=1",
+            "--size=10G",
+        ]
+        if ctx is not None:
+            from infra.capture import capture_cmd
+
+            result = capture_cmd(cmd, ctx=ctx, suffix=f"_{rw}_{bs}")
+        else:
+            result = subprocess.run(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
         if result.returncode != 0:
             logger.warning("fio failed for %s bs=%s: returncode=%s", rw, bs, result.returncode)
             bw = "error"
         else:
             bw = parse_fio_output(result.stdout.decode("utf-8"))
         rows.append((rw, bs, bw))
+
+    if ctx is not None:
+        return rows
 
     table = _build_table(rows)
     print(table)

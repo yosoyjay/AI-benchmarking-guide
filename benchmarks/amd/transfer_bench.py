@@ -68,20 +68,29 @@ def _build(work_dir):
         tools.run_cmd(["make"], cwd=build_dir)
 
 
-def run(work_dir, machine_name):
+def run(work_dir, machine_name, ctx=None):
     """Clone, build, run TransferBench, parse and report results."""
     _build(work_dir)
 
     logger.info("Running TransferBench...")
     tb_bin = os.path.join(work_dir, "TransferBench", "build", "TransferBench")
     cfg = os.path.join(work_dir, "benchmarks", "amd", "transferbench.cfg")
-    result = tools.run_cmd(["sudo", tb_bin, cfg])
+    cmd = ["sudo", tb_bin, cfg]
+    if ctx is not None:
+        from infra.capture import capture_cmd
+
+        result = capture_cmd(cmd, ctx=ctx)
+    else:
+        result = tools.run_cmd(cmd)
 
     if result.returncode != 0:
         logger.warning("TransferBench failed: returncode=%s", result.returncode)
         parsed = {"h2d": "error", "d2h": "error"}
     else:
         parsed = parse_transfer_bench_output(result.stdout.decode("utf-8"))
+
+    if ctx is not None:
+        return parsed
 
     table = _build_table(parsed)
     print(table)
