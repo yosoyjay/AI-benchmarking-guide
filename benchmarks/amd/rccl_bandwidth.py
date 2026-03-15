@@ -5,6 +5,7 @@ import logging
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ _ALGOS = ["Tree", "Ring", "NVLS", "NVLSTree"]
 # ---------------------------------------------------------------------------
 
 
-def parse_rccl_output(text):
+def parse_rccl_output(text: str) -> list[dict[str, str]]:
     """Parse all_reduce_perf output into row dicts.
 
     Looks for 13-column whitespace-delimited lines (``float`` lines).
@@ -34,7 +35,7 @@ def parse_rccl_output(text):
     return rows
 
 
-def _build_table(sizes, bandwidth_columns, algos):
+def _build_table(sizes: list[str], bandwidth_columns: list[list[str]], algos: list[str]) -> PrettyTable:
     """Build a multi-column PrettyTable: sizes + one column per algo."""
     table = PrettyTable()
     table.add_column("Message Size", sizes)
@@ -54,7 +55,7 @@ _DESCRIPTION = (
 )
 
 
-def run(work_dir, machine_name, ctx=None):
+def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict[str, list[dict[str, str]]] | None:
     """Run RCCL AllReduce inside Docker, parse and report."""
     all_parsed = {}
     with AmdContainer(_RCCL_IMAGE, work_dir, entrypoint="/bin/bash") as container:

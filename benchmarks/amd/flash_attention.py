@@ -7,6 +7,7 @@ import re
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ _DESCRIPTION = (
 )
 
 
-def run(work_dir: str, machine_name: str, ctx=None) -> list[dict]:
+def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[dict] | None:
     """Clone repo, run benchmark inside Docker, parse and report results."""
     repo_dir = os.path.join(work_dir, "flash-attention")
     if not os.path.isdir(repo_dir):

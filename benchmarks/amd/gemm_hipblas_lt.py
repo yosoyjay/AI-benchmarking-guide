@@ -5,6 +5,7 @@ import logging
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ _K_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
 # ---------------------------------------------------------------------------
 
 
-def _build_hipblas_yaml(m, n, k):
+def _build_hipblas_yaml(m: int, n: int, k: int) -> str:
     """Construct the YAML config line for hipblaslt-bench.
 
     Produces the single-line YAML that hipblaslt-bench expects via
@@ -38,7 +39,7 @@ def _build_hipblas_yaml(m, n, k):
     )
 
 
-def parse_hipblas_results(text):
+def parse_hipblas_results(text: str) -> list[dict[str, str | float]]:
     """Parse HipBLASLt results file content into row dicts.
 
     Each result line starts with ``"T"`` and is comma-delimited.
@@ -70,7 +71,7 @@ def parse_hipblas_results(text):
     return rows
 
 
-def _build_table(rows):
+def _build_table(rows: list[dict[str, str | float]]) -> PrettyTable:
     """Format parsed row dicts into a PrettyTable."""
     table = PrettyTable(["M", "N", "K", "TFLOPS"])
     for r in rows:
@@ -86,7 +87,7 @@ _DATATYPE = "FP8"
 _WARMUP = 10000
 
 
-def run(work_dir, machine_name, ctx=None):
+def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[dict[str, str | float]] | None:
     """Run HipBLASLt GEMM inside Docker, parse and report."""
     with AmdContainer(_HIPBLAS_IMAGE, work_dir, entrypoint="/bin/bash") as container:
         logger.info("Running HipBLAS...")

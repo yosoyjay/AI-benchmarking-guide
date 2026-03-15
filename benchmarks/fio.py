@@ -8,6 +8,7 @@ import subprocess
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ _FIO_TESTS = [
 # ---------------------------------------------------------------------------
 
 
-def parse_fio_output(text):
+def parse_fio_output(text: str) -> str:
     """Extract bandwidth string from fio output.
 
     Scans for lines containing ': bw=' and extracts the bandwidth value
@@ -43,7 +44,7 @@ def parse_fio_output(text):
     return "error"
 
 
-def _build_table(rows):
+def _build_table(rows: list[tuple[str, str, str]]) -> PrettyTable:
     """Format parsed row tuples into a PrettyTable."""
     table = PrettyTable(["Test", "Batch Size(Bytes)", "Bandwidth"])
     for rw, bs, bw in rows:
@@ -56,7 +57,7 @@ def _build_table(rows):
 # ---------------------------------------------------------------------------
 
 
-def run(work_dir, machine_name, ctx=None):
+def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[tuple[str, str, str]] | None:
     """Run FIO storage benchmarks, parse and report results."""
     output_dir = os.path.join(work_dir, "Outputs")
 

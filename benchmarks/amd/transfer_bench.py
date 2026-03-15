@@ -6,6 +6,7 @@ import os
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ _TRANSFERBENCH_REPO = "https://github.com/ROCm/TransferBench.git"
 # ---------------------------------------------------------------------------
 
 
-def parse_transfer_bench_output(text):
+def parse_transfer_bench_output(text: str) -> dict[str, str]:
     """Parse TransferBench 'sum' line for H2D and D2H bandwidth.
 
     Expects pipe-delimited output filtered to the ``sum`` line.
@@ -36,7 +37,7 @@ def parse_transfer_bench_output(text):
     return {"h2d": "error", "d2h": "error"}
 
 
-def _build_table(parsed):
+def _build_table(parsed: dict[str, str]) -> PrettyTable:
     """Format parsed H2D/D2H dict into a PrettyTable."""
     table = PrettyTable(["Test", "Result"])
     table.add_row(["Host to Device memcpy", parsed["h2d"]])
@@ -49,7 +50,7 @@ def _build_table(parsed):
 # ---------------------------------------------------------------------------
 
 
-def _build(work_dir):
+def _build(work_dir: str) -> None:
     """Clone and build TransferBench."""
     repo_dir = os.path.join(work_dir, "TransferBench")
     if not os.path.isdir(repo_dir):
@@ -68,7 +69,7 @@ def _build(work_dir):
         tools.run_cmd(["make"], cwd=build_dir)
 
 
-def run(work_dir, machine_name, ctx=None):
+def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict[str, str] | None:
     """Clone, build, run TransferBench, parse and report results."""
     _build(work_dir)
 

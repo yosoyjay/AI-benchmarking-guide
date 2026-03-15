@@ -5,6 +5,7 @@ import logging
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ _VLLM_IMAGE = "rocm/vllm-dev:20241121-tuned"
 # ---------------------------------------------------------------------------
 
 
-def parse_vllm_throughput_output(text):
+def parse_vllm_throughput_output(text: str) -> str | None:
     """Extract throughput value from vLLM benchmark output.
 
     Scans for a line containing ``"Throughput: "`` and extracts the
@@ -32,7 +33,7 @@ def parse_vllm_throughput_output(text):
     return None
 
 
-def _build_table(rows):
+def _build_table(rows: list[tuple[str, str, str, str]]) -> PrettyTable:
     """Format (input_len, output_len, tp_size, throughput) tuples into a PrettyTable."""
     table = PrettyTable(["input len", "output len", "tp size", "throughput(tokens/s)"])
     for input_len, output_len, tp_size, throughput in rows:
@@ -45,7 +46,9 @@ def _build_table(rows):
 # ---------------------------------------------------------------------------
 
 
-def run(work_dir, machine_name, config_path="config.json", ctx=None):
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> list[tuple[str, str, str, str]] | None:
     """Run vLLM throughput benchmarks inside Docker, parse and report."""
     config = tools.load_benchmark_config(config_path, "LLMBenchmark")
 
