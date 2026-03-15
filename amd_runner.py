@@ -108,10 +108,7 @@ def run_TransferBench(machine_name, current):
 
 
 def run_GEMMHipBLAS(machine_name, current):
-    test = GEMM.GEMMHipBLAS("config.json", current, machine_name)
-    test.create_container()
-    test.build()
-    test.run_model_sizes()
+    GEMM.run(work_dir=current, machine_name=machine_name)
 
 
 def run_RCCLBandwidth(machine_name, current):

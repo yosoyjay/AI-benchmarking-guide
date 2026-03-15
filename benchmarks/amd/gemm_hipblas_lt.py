@@ -1,8 +1,12 @@
+"""GEMM HipBLASLt benchmark (AMD ROCm, Docker-based)."""
+
 import logging
 import os
-from infra import tools
+
 from prettytable import PrettyTable
-import docker
+
+from infra import tools
+from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
 
@@ -10,97 +14,131 @@ _HIPBLAS_IMAGE = "rocm/vllm-dev:main"
 _HIPBLASLT_REPO = "https://github.com/ROCm/hipBLASLt"
 _HIPBLASLT_COMMIT = "a11ccf64efcd818106dbe37768f69dfcc0a7ff22"
 
-class GEMMHipBLAS:
-    def __init__(self, path: str, dir_path: str, machine: str, i: int = 1000, w: int = 10000):
-        self.name = "GEMMHipBLAS"
-        self.datatype = "FP8"
-        self.dir_path = dir_path
-        self.i = i
-        self.w = w
-        self.bindir = ''
-        self.machine_name = machine
-        self.container = None
+_M_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
+_N_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
+_K_DIMS = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
 
-    def create_container(self):
-        client = docker.from_env()
-        # Define the Docker run options
-        docker_run_options = {
-            'ipc_mode':'host',
-            'entrypoint': '/bin/bash',
-            'network': 'host',
-            'group_add': ['render'],
-            'privileged': True,
-            'security_opt': ['seccomp=unconfined'],
-            'cap_add': ['CAP_SYS_ADMIN', 'SYS_PTRACE'],
-            'devices': ['/dev/kfd', '/dev/dri', '/dev/mem'],
-            'volumes': {str(self.dir_path): {'bind': str(self.dir_path), 'mode': 'rw'}},
-            'tty': True,
-            'detach': True
-        }
-        # Creates new Docker container
-        logger.info("Pulling docker container %s...", _HIPBLAS_IMAGE)
-        self.container = client.containers.run(_HIPBLAS_IMAGE, **docker_run_options)
-        logger.info("Launched Docker Container ID: %s", self.container.id)
 
-    def build(self):
-        path = "hipBLASLt"
-        isdir = os.path.isdir(path)
-        if not isdir:
-            clone_cmd = f"git clone {_HIPBLASLT_REPO} {self.dir_path}/hipBLASLt"
-            results = self.container.exec_run(clone_cmd, stderr=True)
-            results = self.container.exec_run(f'/bin/sh -c "cd {self.dir_path}/hipBLASLt && git checkout {_HIPBLASLT_COMMIT}"', stderr=True)
-            if results.exit_code != 0:
-                tools.write_log(results.output.decode('utf-8'))
-                return
+# ---------------------------------------------------------------------------
+# Pure helpers -- no side effects, fully testable
+# ---------------------------------------------------------------------------
 
-            results = self.container.exec_run(f'sudo apt-get -y update', stderr=True)
-            tools.write_log(results.output.decode('utf-8'))
-            results = self.container.exec_run(f'sudo apt -y install llvm-dev', stderr=True)
-            tools.write_log(results.output.decode('utf-8'))
-            logger.info("Building hipBLAS Library...")
-            results = self.container.exec_run(f'/bin/sh -c "cd {self.dir_path}/hipBLASLt && ./install.sh -dc -a gfx942"', stderr=True)
-            tools.write_log(results.output.decode('utf-8'))
 
-    # run GEMM with predetermined matrix sizes that are commonly used in transformers
-    def run_model_sizes(self):
-        logger.info("Running HipBLAS...")
-        m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
-        n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
-        k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
+def parse_hipblas_results(text):
+    """Parse HipBLASLt results file content into row dicts.
 
+    Each result line starts with ``"T"`` and is comma-delimited.
+    Extracts M (field 4), N (field 5), K (field 6), and TFLOPS
+    (``field[-3] / 1000``).  Returns a list of dicts.
+    """
+    rows = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped[0] != "T":
+            continue
+        fields = stripped.split(",")
+        if len(fields) < 7:
+            logger.warning("unexpected format in GEMMHipBLAS results: %s", stripped)
+            continue
         try:
-            for m, n, k in zip(m_dims, n_dims, k_dims):
-                hipblas_cmd = f'cd {self.dir_path}/benchmarks/amd && ./hipBLAS_runner.sh {m} {n} {k}'
-                results = self.container.exec_run(f'/bin/sh -c "{hipblas_cmd}"')
-                tools.write_log(results.output.decode('utf-8'))
+            tflops = float(fields[-3]) / 1000
+        except (ValueError, IndexError):
+            logger.warning("cannot parse TFLOPS from: %s", stripped)
+            continue
+        rows.append(
+            {
+                "m": fields[4],
+                "n": fields[5],
+                "k": fields[6],
+                "tflops": tflops,
+            }
+        )
+    return rows
 
-            try:
-                with open(os.path.join(self.dir_path, 'Outputs', 'GEMMHipBLAS_results.txt'), 'r') as resFile:
-                    table1 = PrettyTable()
-                    table1.field_names = ["M","N","K","TFLOPS"]
-                    for line in resFile:
-                        l = line.strip()
-                        if l and l[0] == "T":
-                            l = l.split(',')
-                            if len(l) >= 7:
-                                m = l[4]
-                                n = l[5]
-                                k = l[6]
-                                tflops = float(l[-3])/1000
-                                table1.add_row([m,n,k,tflops])
-                            else:
-                                logger.warning("unexpected format in GEMMHipBLAS results: %s", line.strip())
-            except FileNotFoundError:
-                logger.warning("GEMMHipBLAS_results.txt not found, skipping result table")
-                table1 = PrettyTable()
-                table1.field_names = ["M","N","K","TFLOPS"]
-            except Exception as e:
-                logger.warning("error reading GEMMHipBLAS results: %s", e)
-                table1 = PrettyTable()
-                table1.field_names = ["M","N","K","TFLOPS"]
 
-            print(table1)
-            tools.export_markdown("GEMM HipBLASLt", f"The results shown below are with random initialization (best representation of real-life workloads) {self.datatype}, and {self.w} warmup iterations.", table1)
-            results = self.container.exec_run(f'/bin/sh -c "rm {self.dir_path}/Outputs/GEMMHipBLAS_results.txt"', stderr=True)
-        finally:
-            self.container.kill()
+def _build_table(rows):
+    """Format parsed row dicts into a PrettyTable."""
+    table = PrettyTable(["M", "N", "K", "TFLOPS"])
+    for r in rows:
+        table.add_row([r["m"], r["n"], r["k"], r["tflops"]])
+    return table
+
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+_DATATYPE = "FP8"
+_WARMUP = 10000
+
+
+def _build(container, work_dir):
+    """Clone hipBLASLt, install deps, and build inside the container."""
+    repo_dir = os.path.join(work_dir, "hipBLASLt")
+    if not os.path.isdir(repo_dir):
+        res = container.exec_run(
+            ["git", "clone", _HIPBLASLT_REPO, repo_dir],
+            stderr=True,
+        )
+        tools.write_log(res.output.decode("utf-8"))
+
+        res = container.exec_run(
+            ["git", "checkout", _HIPBLASLT_COMMIT],
+            workdir=repo_dir,
+            stderr=True,
+        )
+        if res.exit_code != 0:
+            tools.write_log(res.output.decode("utf-8"))
+            return
+
+        res = container.exec_run(["sudo", "apt-get", "-y", "update"], stderr=True)
+        tools.write_log(res.output.decode("utf-8"))
+
+        res = container.exec_run(["sudo", "apt", "-y", "install", "llvm-dev"], stderr=True)
+        tools.write_log(res.output.decode("utf-8"))
+
+        logger.info("Building hipBLAS Library...")
+        res = container.exec_run(
+            ["/bin/sh", "-c", f"cd {repo_dir} && ./install.sh -dc -a gfx942"],
+            stderr=True,
+        )
+        tools.write_log(res.output.decode("utf-8"))
+
+
+def run(work_dir, machine_name):
+    """Clone, build, run HipBLASLt GEMM inside Docker, parse and report."""
+    results_path = os.path.join(work_dir, "Outputs", "GEMMHipBLAS_results.txt")
+
+    with AmdContainer(_HIPBLAS_IMAGE, work_dir, entrypoint="/bin/bash") as container:
+        _build(container, work_dir)
+
+        logger.info("Running HipBLAS...")
+        script_dir = os.path.join(work_dir, "benchmarks", "amd")
+        for m, n, k in zip(_M_DIMS, _N_DIMS, _K_DIMS):
+            res = container.exec_run(
+                ["/bin/sh", "-c", f"cd {script_dir} && ./hipBLAS_runner.sh {m} {n} {k}"],
+            )
+            tools.write_log(res.output.decode("utf-8"))
+
+    # Parse results written by hipBLAS_runner.sh
+    try:
+        with open(results_path) as f:
+            text = f.read()
+        rows = parse_hipblas_results(text)
+    except FileNotFoundError:
+        logger.warning("GEMMHipBLAS_results.txt not found, skipping result table")
+        rows = []
+
+    table = _build_table(rows)
+    print(table)
+    tools.export_markdown(
+        "GEMM HipBLASLt",
+        f"The results shown below are with random initialization (best representation of real-life workloads) {_DATATYPE}, and {_WARMUP} warmup iterations.",
+        table,
+    )
+
+    # Clean up results file
+    try:
+        os.remove(results_path)
+    except FileNotFoundError:
+        pass
