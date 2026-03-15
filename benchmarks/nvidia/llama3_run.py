@@ -76,7 +76,7 @@ def _plot_results(
     text: str,
     model_size: str,
     machine_name: str,
-    output_dir: str = "Outputs",
+    output_dir: str = ".",
 ) -> tuple[float | None, float | None]:
     """Parse training output, generate loss/time plots, return steady-state values."""
     global_steps, train_losses, train_times = parse_llama3_output(text)
@@ -191,8 +191,9 @@ def run(
         ctx.extra["model_size"] = model_size
         return time_ss, loss_ss
 
-    # Legacy path
-    log_path = os.path.join("Outputs", "llama3_docker_output.txt")
+    # Legacy path -- use session dir when running through a runner
+    legacy_dir = os.path.dirname(tools._summary_path) if tools._summary_path else os.getcwd()
+    log_path = os.path.join(legacy_dir, "llama3_docker_output.txt")
     with open(log_path, "w") as file:
         proc = subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
 
@@ -201,13 +202,10 @@ def run(
         tools.write_log(f"LLAMA3 pretraining failed with exit code {proc.returncode}")
         return None
 
-    # now plot the results
     logger.info("Pretraining has finished with output saved to: %s. Now plotting.", log_path)
     with open(log_path, "r", encoding="utf-8") as f:
         text = f.read()
-    # Use session dir for plots when running through a runner, else Outputs/
-    plot_dir = os.path.dirname(tools._summary_path) if tools._summary_path else "Outputs"
-    time_ss, loss_ss = _plot_results(text, model_size, machine_name, output_dir=plot_dir)
+    time_ss, loss_ss = _plot_results(text, model_size, machine_name, output_dir=legacy_dir)
 
     # add summary to markdown
     table = PrettyTable()

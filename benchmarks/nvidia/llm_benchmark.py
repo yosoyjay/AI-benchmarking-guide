@@ -217,7 +217,8 @@ def _run_benchmarks(
                 text = result.stdout.decode("utf-8")
             else:
                 result = tools.run_cmd(cmd, env=env)
-                results_path = os.path.join(work_dir, "Outputs", f"results_{name}_{isl}_{osl}.txt")
+                legacy_dir = os.path.dirname(tools._summary_path) if tools._summary_path else work_dir
+                results_path = os.path.join(legacy_dir, f"results_{name}_{isl}_{osl}.txt")
                 with open(results_path, "w", encoding="utf-8") as f:
                     f.write(result.stdout.decode("utf-8"))
                 try:

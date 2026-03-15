@@ -152,7 +152,7 @@ def export_markdown(title: str | None, description: str, table: PrettyTable | No
     if _summary_path is not None:
         filename = _summary_path
     else:
-        filename = os.path.join(curr, "Outputs", f"{get_hostname()}_summary.md")
+        filename = os.path.join(curr, f"{get_hostname()}_summary.md")
     with open(filename, "a") as file:
         if title is not None:
             file.write(f"## {title}\n\n")
