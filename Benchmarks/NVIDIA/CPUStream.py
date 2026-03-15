@@ -111,6 +111,10 @@ class CPUStream:
             triad.append(float(log[3][1]))
             dot.append(float(log[4][1]))
 
+        if len(copy) == 1:
+            print("Warning: all BabelStream runs produced incomplete output, no results to report")
+            return
+
         copy[1:] = self.process_stats(copy[1:])
         mul[1:] = self.process_stats(mul[1:])
         add[1:] = self.process_stats(add[1:])
