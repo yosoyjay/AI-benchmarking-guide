@@ -41,7 +41,8 @@ def get_system_specs():
         results = subprocess.run("nvcc --version | grep release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if results.returncode == 0 and results.stdout:
             parts = results.stdout.decode('utf-8').split(",")
-            cuda_version = parts[1].strip().split(" ")[1] if len(parts) > 1 else "unknown"
+            cuda_parts = parts[1].strip().split(" ") if len(parts) > 1 else []
+            cuda_version = cuda_parts[1] if len(cuda_parts) > 1 else "unknown"
         else:
             cuda_version = "unknown"
         table.add_row(["CUDA version", cuda_version])

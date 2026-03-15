@@ -127,7 +127,10 @@ class GEMMCublastLt:
         table1 = PrettyTable()
         table1.field_names = ["M", "N", "K", "Batch Size", "Time(us)", "TFLOPS"]
         for item in buffer:
-            table1.add_row(item)
+            if len(item) == 6:
+                table1.add_row(item)
+            else:
+                print(f"Warning: skipping cublaslt_gemm result with {len(item)} columns (expected 6): {item}")
         print(table1)
         tools.export_markdown("GEMM CuBLASLt", "The results shown below are with random initialization (best representation of real-life workloads) " + self.datatype +  ", and " + str(self.w) + " warmup iterations.", table1)
         os.chdir(current)
