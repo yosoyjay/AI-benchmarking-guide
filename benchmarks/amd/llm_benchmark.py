@@ -1,91 +1,100 @@
+"""LLM throughput benchmark (AMD ROCm, Docker-based, vLLM)."""
+
 import logging
-import docker
+
 from prettytable import PrettyTable
+
 from infra import tools
+from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
 
 _VLLM_IMAGE = "rocm/vllm-dev:20241121-tuned"
 
-class LLMBenchmark:
-    def __init__(self, config_path: str, dir_path: str, machine: str):
-        self.name = "LLMBenchmark"
-        self.config = tools.load_benchmark_config(config_path, self.name)
-        self.dir_path = dir_path
-        self.precision = "half"
-        self.table = None
-        self.container = None
-        self.machine = machine
 
-    def create_container(self):
-        client = docker.from_env()
-        # Define the Docker run options
-        docker_run_options = {
-            'ipc_mode':'host',
-            'network': 'host',
-            'entrypoint':'/bin/bash',
-            'group_add': ['render'],
-            'privileged': True,
-            'security_opt': ['seccomp=unconfined'],
-            'cap_add': ['CAP_SYS_ADMIN', 'SYS_PTRACE'],
-            'devices': ['/dev/kfd', '/dev/dri', '/dev/mem'],
-            'volumes': {str(self.dir_path): {'bind': str(self.dir_path), 'mode': 'rw'}},
-            'environment': {'HF_HOME': str(self.dir_path)},
-            'tty': True,
-            'detach': True
-        }
+# ---------------------------------------------------------------------------
+# Pure helpers -- no side effects, fully testable
+# ---------------------------------------------------------------------------
 
-        # Creates new Docker container
-        logger.info("Pulling docker container %s", _VLLM_IMAGE)
-        self.container = client.containers.run(_VLLM_IMAGE, **docker_run_options)
-        logger.info("Docker Container ID: %s", self.container.id)
 
-    def run_benchmark(self):
-        if self.container is None:
-            logger.warning("no container created, skipping benchmark run")
-            return
-        try:
-            for model_name in self.config['models']:
-                if self.config['models'][model_name]['use_model'] and self.config['models'][model_name]['type'] == "amd":
-                    self.table = PrettyTable(["input len", "output len", "tp size", "throughput(tokens/s)"])
-                    for tp_size in self.config['models'][model_name]['tp_sizes']:
-                        logger.info("Benchmarking %s with TP Size: %s", model_name, tp_size)
-                        for max_num_seq in self.config['models'][model_name]['max_num_seqs']:
-                            for input_size, output_size in zip(
-                                self.config['models'][model_name]['input_length'],
-                                self.config['models'][model_name]['output_length'],
-                            ):
-                                for request in self.config['models'][model_name]['num_requests']:
-                                    logger.info(" Input Size: %s, Output Size: %s...", input_size, output_size)
-                                    run_benchmark_command = f'''
-                                        /bin/bash -c \
-                                        "python /app/vllm/benchmarks/benchmark_throughput.py \
-                                            --model amd/{model_name} \
-                                            --quantization fp8 \
-                                            --kv-cache-dtype fp8 \
-                                            --dtype half \
-                                            --gpu-memory-utilization 0.90 \
-                                            --distributed-executor-backend mp \
-                                            --num-scheduler-steps 10 \
-                                            --tensor-parallel-size {tp_size} \
-                                            --enable-chunked-prefill false \
-                                            --max-seq-len-to-capture 131072 \
-                                            --max-num-batched-tokens 131072 \
-                                            --max-model-len 8192 \
-                                            --max-num-seqs {max_num_seq} \
-                                            --num-prompts {request} \
-                                            --input-len {input_size} \
-                                            --output-len {output_size}"
-                                        '''
-                                    rb1 = self.container.exec_run(run_benchmark_command)
-                                    tools.write_log(rb1.output.decode('utf-8'))
-                                    temp = rb1.output.decode('utf-8').split('\n')
-                                    for line in temp:
-                                        if "Throughput: " in line:
-                                            parts = line.split(' ')
-                                            result = parts[6] if len(parts) > 6 else "unknown"
-                                            self.table.add_row([str(input_size), str(output_size), str(tp_size), str(result)])
-                    print(self.table)
-                    tools.export_markdown(model_name, "Performance results with FP8 quantization.", self.table)
-        finally:
-            self.container.kill()
+def parse_vllm_throughput_output(text):
+    """Extract throughput value from vLLM benchmark output.
+
+    Scans for a line containing ``"Throughput: "`` and extracts the
+    tokens/s value (7th token, index 6).  Returns the value string
+    or ``None`` if not found.
+    """
+    for line in text.splitlines():
+        if "Throughput: " in line:
+            parts = line.split(" ")
+            if len(parts) > 6:
+                return parts[6]
+    return None
+
+
+def _build_table(rows):
+    """Format (input_len, output_len, tp_size, throughput) tuples into a PrettyTable."""
+    table = PrettyTable(["input len", "output len", "tp size", "throughput(tokens/s)"])
+    for input_len, output_len, tp_size, throughput in rows:
+        table.add_row([input_len, output_len, tp_size, throughput])
+    return table
+
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+
+def run(work_dir, machine_name, config_path="config.json"):
+    """Run vLLM throughput benchmarks inside Docker, parse and report."""
+    config = tools.load_benchmark_config(config_path, "LLMBenchmark")
+
+    with AmdContainer(
+        _VLLM_IMAGE,
+        work_dir,
+        entrypoint="/bin/bash",
+        environment={"HF_HOME": work_dir},
+    ) as container:
+        for model_name, model_cfg in config["models"].items():
+            if not model_cfg["use_model"] or model_cfg["type"] != "amd":
+                continue
+
+            rows = []
+            for tp_size in model_cfg["tp_sizes"]:
+                logger.info("Benchmarking %s with TP Size: %s", model_name, tp_size)
+                for max_num_seq in model_cfg["max_num_seqs"]:
+                    for input_size, output_size in zip(
+                        model_cfg["input_length"],
+                        model_cfg["output_length"],
+                    ):
+                        for request in model_cfg["num_requests"]:
+                            logger.info(" Input Size: %s, Output Size: %s...", input_size, output_size)
+                            cmd = (
+                                f"python /app/vllm/benchmarks/benchmark_throughput.py "
+                                f"--model amd/{model_name} "
+                                f"--quantization fp8 "
+                                f"--kv-cache-dtype fp8 "
+                                f"--dtype half "
+                                f"--gpu-memory-utilization 0.90 "
+                                f"--distributed-executor-backend mp "
+                                f"--num-scheduler-steps 10 "
+                                f"--tensor-parallel-size {tp_size} "
+                                f"--enable-chunked-prefill false "
+                                f"--max-seq-len-to-capture 131072 "
+                                f"--max-num-batched-tokens 131072 "
+                                f"--max-model-len 8192 "
+                                f"--max-num-seqs {max_num_seq} "
+                                f"--num-prompts {request} "
+                                f"--input-len {input_size} "
+                                f"--output-len {output_size}"
+                            )
+                            res = container.exec_run(["/bin/bash", "-c", cmd])
+                            output = res.output.decode("utf-8")
+                            tools.write_log(output)
+                            throughput = parse_vllm_throughput_output(output)
+                            result = throughput if throughput is not None else "unknown"
+                            rows.append((str(input_size), str(output_size), str(tp_size), str(result)))
+
+            table = _build_table(rows)
+            print(table)
+            tools.export_markdown(model_name, "Performance results with FP8 quantization.", table)

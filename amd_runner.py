@@ -128,9 +128,7 @@ def run_HBMBandwidth(machine_name, current):
 
 
 def run_LLMBenchmark(machine_name, current):
-    test = llmb.LLMBenchmark("config.json", current, machine_name)
-    test.create_container()
-    test.run_benchmark()
+    llmb.run(work_dir=current, machine_name=machine_name)
 
 
 BENCHMARKS = {
