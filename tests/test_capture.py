@@ -1,12 +1,16 @@
-"""Tests for infra.capture -- RunContext, get_version, make_run_dir, save_raw."""
+"""Tests for infra.capture -- RunContext, get_version, make_run_dir, save_raw, capture_cmd, capture_docker."""
 
+import subprocess
 from datetime import datetime
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 from infra.capture import (
     RunContext,
     _format_timestamp,
     _sanitize_sku,
+    capture_cmd,
+    capture_docker,
     get_version,
     make_run_dir,
     save_raw,
@@ -161,3 +165,175 @@ class TestSaveRaw:
         stdout_path, stderr_path = save_raw(run_dir, "test", "v1", ts, "", "")
         assert stdout_path.read_text() == ""
         assert stderr_path.read_text() == ""
+
+
+# ---------------------------------------------------------------------------
+# capture_cmd
+# ---------------------------------------------------------------------------
+
+
+def _make_ctx(tmp_path, benchmark="test_bench"):
+    """Build a RunContext rooted in tmp_path with raw/ dir created."""
+    run_dir = tmp_path / "run"
+    (run_dir / "raw").mkdir(parents=True)
+    ts = datetime(2025, 6, 1, 12, 0, 0)
+    return RunContext(
+        benchmark=benchmark,
+        sku="TestSKU",
+        platform="nvidia",
+        version="abc123",
+        timestamp=ts,
+        results_dir=tmp_path,
+        run_dir=run_dir,
+    )
+
+
+class TestCaptureCmd:
+    def test_returns_completed_process(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        with patch("infra.capture.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=["echo", "hi"], returncode=0, stdout=b"hello\n", stderr=b""
+            )
+            result = capture_cmd(["echo", "hi"], ctx=ctx)
+            assert isinstance(result, subprocess.CompletedProcess)
+            assert result.returncode == 0
+
+    def test_saves_stdout_file(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        with patch("infra.capture.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(
+                args=["cmd"], returncode=0, stdout=b"output data", stderr=b"err data"
+            )
+            capture_cmd(["cmd"], ctx=ctx)
+            raw_dir = ctx.run_dir / "raw"
+            stdout_files = list(raw_dir.glob("*.stdout"))
+            stderr_files = list(raw_dir.glob("*.stderr"))
+            assert len(stdout_files) == 1
+            assert len(stderr_files) == 1
+            assert stdout_files[0].read_text() == "output data"
+            assert stderr_files[0].read_text() == "err data"
+
+    def test_suffix_in_filename(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        with patch("infra.capture.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout=b"x", stderr=b"")
+            capture_cmd(["cmd"], ctx=ctx, suffix="_m1024")
+            raw_dir = ctx.run_dir / "raw"
+            stdout_files = list(raw_dir.glob("*.stdout"))
+            assert "_m1024.stdout" in stdout_files[0].name
+
+    def test_forwards_kwargs(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        with patch("infra.capture.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout=b"", stderr=b"")
+            capture_cmd(["cmd"], ctx=ctx, cwd="/tmp", shell=False)
+            _, call_kwargs = mock_run.call_args
+            assert call_kwargs["cwd"] == "/tmp"
+
+    def test_handles_none_stdout_stderr(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        with patch("infra.capture.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=0, stdout=None, stderr=None)
+            result = capture_cmd(["cmd"], ctx=ctx)
+            assert result.returncode == 0
+            raw_dir = ctx.run_dir / "raw"
+            stdout_files = list(raw_dir.glob("*.stdout"))
+            assert stdout_files[0].read_text() == ""
+
+    def test_nonzero_returncode_logged(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        with patch("infra.capture.subprocess.run") as mock_run:
+            mock_run.return_value = subprocess.CompletedProcess(args=["cmd"], returncode=1, stdout=b"", stderr=b"fail")
+            result = capture_cmd(["cmd"], ctx=ctx)
+            assert result.returncode == 1
+
+
+# ---------------------------------------------------------------------------
+# capture_docker
+# ---------------------------------------------------------------------------
+
+
+class TestCaptureDocker:
+    def _mock_container(self, stdout=b"docker out", stderr=b"docker err", exit_code=0):
+        container = MagicMock()
+        container.exec_run.return_value = SimpleNamespace(
+            output=(stdout, stderr),
+            exit_code=exit_code,
+        )
+        return container
+
+    def test_returns_tuple(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = self._mock_container()
+        result = capture_docker(container, ["python", "bench.py"], ctx=ctx)
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+
+    def test_stdout_stderr_content(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = self._mock_container(stdout=b"hello", stderr=b"warning")
+        stdout, stderr, exit_code = capture_docker(container, ["cmd"], ctx=ctx)
+        assert stdout == "hello"
+        assert stderr == "warning"
+        assert exit_code == 0
+
+    def test_saves_raw_files(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = self._mock_container(stdout=b"out data", stderr=b"err data")
+        capture_docker(container, ["cmd"], ctx=ctx)
+        raw_dir = ctx.run_dir / "raw"
+        stdout_files = list(raw_dir.glob("*.stdout"))
+        stderr_files = list(raw_dir.glob("*.stderr"))
+        assert len(stdout_files) == 1
+        assert stdout_files[0].read_text() == "out data"
+        assert stderr_files[0].read_text() == "err data"
+
+    def test_suffix_in_filename(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = self._mock_container()
+        capture_docker(container, ["cmd"], ctx=ctx, suffix="_ring")
+        raw_dir = ctx.run_dir / "raw"
+        stdout_files = list(raw_dir.glob("*.stdout"))
+        assert "_ring.stdout" in stdout_files[0].name
+
+    def test_calls_demux_true(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = self._mock_container()
+        capture_docker(container, ["cmd"], ctx=ctx)
+        container.exec_run.assert_called_once_with(["cmd"], demux=True)
+
+    def test_nonzero_exit_code(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = self._mock_container(exit_code=1)
+        _, _, exit_code = capture_docker(container, ["cmd"], ctx=ctx)
+        assert exit_code == 1
+
+    def test_handles_none_output(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = MagicMock()
+        container.exec_run.return_value = SimpleNamespace(
+            output=(None, None),
+            exit_code=0,
+        )
+        stdout, stderr, exit_code = capture_docker(container, ["cmd"], ctx=ctx)
+        assert stdout == ""
+        assert stderr == ""
+
+    def test_handles_non_demux_output(self, tmp_path):
+        """When demux is not supported, output is raw bytes instead of tuple."""
+        ctx = _make_ctx(tmp_path)
+        container = MagicMock()
+        container.exec_run.return_value = SimpleNamespace(
+            output=b"raw bytes",
+            exit_code=0,
+        )
+        stdout, stderr, exit_code = capture_docker(container, ["cmd"], ctx=ctx)
+        assert stdout == "raw bytes"
+        assert stderr == ""
+
+    def test_forwards_kwargs(self, tmp_path):
+        ctx = _make_ctx(tmp_path)
+        container = self._mock_container()
+        capture_docker(container, ["cmd"], ctx=ctx, stderr=True)
+        container.exec_run.assert_called_once_with(["cmd"], demux=True, stderr=True)

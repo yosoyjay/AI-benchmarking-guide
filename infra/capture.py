@@ -1,9 +1,12 @@
 """Raw output capture and directory scaffolding for benchmark runs."""
 
+import logging
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -78,3 +81,71 @@ def save_raw(
     stdout_path.write_text(stdout, encoding="utf-8")
     stderr_path.write_text(stderr, encoding="utf-8")
     return stdout_path, stderr_path
+
+
+def capture_cmd(cmd, *, ctx: RunContext, suffix: str = "", **kwargs) -> subprocess.CompletedProcess:
+    """Run *cmd* via subprocess, save raw output, return CompletedProcess.
+
+    Wraps ``subprocess.run`` with ``stdout=PIPE, stderr=PIPE``.  The
+    captured stdout/stderr are written to raw files under ``ctx.run_dir``.
+    All extra *kwargs* are forwarded to ``subprocess.run``.
+    """
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        **kwargs,
+    )
+    stdout_text = result.stdout.decode("utf-8") if result.stdout else ""
+    stderr_text = result.stderr.decode("utf-8") if result.stderr else ""
+
+    save_raw(ctx.run_dir, ctx.benchmark, ctx.version, ctx.timestamp, stdout_text, stderr_text, suffix=suffix)
+
+    if result.returncode != 0:
+        logger.warning(
+            "%s (suffix=%r) exited with returncode %s",
+            ctx.benchmark,
+            suffix,
+            result.returncode,
+        )
+    return result
+
+
+def capture_docker(
+    container,
+    cmd,
+    *,
+    ctx: RunContext,
+    suffix: str = "",
+    **kwargs,
+) -> tuple[str, str, int]:
+    """Run *cmd* inside a Docker container, save raw output.
+
+    Calls ``container.exec_run(cmd, demux=True, **kwargs)`` and writes
+    stdout/stderr to raw files.  Returns ``(stdout_str, stderr_str,
+    exit_code)``.
+    """
+    res = container.exec_run(cmd, demux=True, **kwargs)
+
+    # demux=True returns (stdout_bytes, stderr_bytes) or (None, None)
+    if isinstance(res.output, tuple):
+        stdout_bytes, stderr_bytes = res.output
+    else:
+        # Fallback: demux not supported or not enabled
+        stdout_bytes = res.output
+        stderr_bytes = None
+
+    stdout_text = stdout_bytes.decode("utf-8") if stdout_bytes else ""
+    stderr_text = stderr_bytes.decode("utf-8") if stderr_bytes else ""
+
+    save_raw(ctx.run_dir, ctx.benchmark, ctx.version, ctx.timestamp, stdout_text, stderr_text, suffix=suffix)
+
+    exit_code = res.exit_code
+    if exit_code != 0:
+        logger.warning(
+            "%s docker (suffix=%r) exited with code %s",
+            ctx.benchmark,
+            suffix,
+            exit_code,
+        )
+    return stdout_text, stderr_text, exit_code
