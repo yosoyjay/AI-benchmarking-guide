@@ -1,6 +1,4 @@
-import json
 import os
-import time
 import subprocess
 from prettytable import PrettyTable
 from Infra import tools

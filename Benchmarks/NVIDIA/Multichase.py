@@ -1,6 +1,4 @@
-import json
 import os
-import statistics
 import subprocess
 from Infra import tools
 from prettytable import PrettyTable

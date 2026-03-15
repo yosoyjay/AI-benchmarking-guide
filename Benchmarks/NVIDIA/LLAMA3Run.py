@@ -1,12 +1,10 @@
 import os
 import re
 import json
-import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
 from Infra import tools
 from prettytable import PrettyTable
-from datetime import datetime
 
 class LLAMA3Pretraining:
     def __init__(self, config_path: str, machine_name: str, model_size: str = "8b"):
