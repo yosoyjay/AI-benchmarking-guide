@@ -73,8 +73,8 @@ class RCCLBandwidth:
         runs = ["Tree", "Ring", "NVLS", "NVLSTree"]
         logger.info("Running RCCL AllReduce...")
         try:
-            for run in runs:
-                run_cmd = f"NCCL_ALGO={run} {self.dir_path}/rccl-tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 8 -n 40 | grep float"
+            for algo in runs:
+                run_cmd = f"NCCL_ALGO={algo} {self.dir_path}/rccl-tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 8 -n 40 | grep float"
                 run_cmd = f'/bin/sh -c "{run_cmd}"'
                 results = self.container.exec_run(run_cmd, stderr=True)
                 if results.exit_code != 0:

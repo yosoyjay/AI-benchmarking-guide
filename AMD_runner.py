@@ -8,7 +8,7 @@ from Benchmarks.AMD import FlashAttention as FA
 from Benchmarks.AMD import HBMBandwidth as HBM
 from Benchmarks.AMD import TransferBench as TB
 from Benchmarks.AMD import GEMMHipblasLt as GEMM
-from Benchmarks.AMD import FIO
+from Benchmarks import FIO
 from Infra import tools
 from Benchmarks.AMD import LLMBenchmark as llmb
 
@@ -102,7 +102,6 @@ def run_RCCLBandwidth(machine_name, current):
 def run_FlashAttention(machine_name, current):
     test = FA.FlashAttention(current, machine_name)
     test.run()
-    os.chdir(current)
 
 def run_FIO(machine_name, current):
     test = FIO.FIO(current, machine_name)
@@ -163,7 +162,6 @@ def main():
             dispatch[key]()
         except Exception as e:
             logger.warning("%s benchmark failed: %s", name, e)
-        os.chdir(current)
 
 
 if __name__ == "__main__":

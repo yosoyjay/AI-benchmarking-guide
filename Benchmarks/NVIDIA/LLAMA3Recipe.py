@@ -17,9 +17,8 @@ def parse_args():
     args, _ = parser.parse_known_args()
     return args
 
-args = parse_args()
 
-def load_config():
+def load_config(args):
     with open("config.json") as f:
         data = json.load(f)
     try:
@@ -31,7 +30,7 @@ def load_config():
         )
 
 
-def configure_recipe(cfg, nodes=1):
+def configure_recipe(args, cfg, nodes=1):
     precision = cfg.get("precision", "bf16").lower()
     plugin = bf16_with_fp8_mixed() if precision == "bf16" else fp16_with_fp8_mixed()
     gpus_per_node = 8 if args.machine_name == "H200" else 4
@@ -85,7 +84,7 @@ def configure_recipe(cfg, nodes=1):
     return recipe
 
 
-def local_executor_torchrun(nodes=1):
+def local_executor_torchrun(args, nodes=1):
     env_vars = {
         "TORCH_NCCL_AVOID_RECORD_STREAMS": "1",
         "NCCL_NVLS_ENABLE": "0",
@@ -102,10 +101,12 @@ def local_executor_torchrun(nodes=1):
 
 
 def run_pretraining():
-    cfg = load_config()
-    recipe = configure_recipe(cfg)
+    args = parse_args()
+    cfg = load_config(args)
+    recipe = configure_recipe(args, cfg)
 
     executor = local_executor_torchrun(
+        args,
         nodes=recipe.trainer.num_nodes
     )
 

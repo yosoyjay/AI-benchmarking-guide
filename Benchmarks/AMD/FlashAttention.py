@@ -49,9 +49,8 @@ class FlashAttention:
             results = tools.run_cmd(f'git clone {_FLASH_ATTENTION_REPO}',shell=True)
 
         build_path = os.path.join(current, 'flash-attention')
-        os.chdir(build_path)
 
-        results = tools.run_cmd(f'git checkout {_FLASH_ATTENTION_CHECKOUT}',shell=True)
+        results = tools.run_cmd(f'git checkout {_FLASH_ATTENTION_CHECKOUT}',shell=True, cwd=build_path)
 
         self.create_container()
         logger.info("Running Flash Attention...")

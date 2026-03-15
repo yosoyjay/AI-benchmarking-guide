@@ -7,7 +7,7 @@ import json
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-pwd = os.path.join(_PROJECT_ROOT, "Outputs", "log.txt")
+_LOG_PATH = os.path.join(_PROJECT_ROOT, "Outputs", "log.txt")
 curr = _PROJECT_ROOT
 
 def run_cmd(cmd, *, shell=False, env=None, cwd=None, **kwargs):
@@ -36,7 +36,7 @@ def create_dir(name: str):
     os.makedirs(outdir, exist_ok=True)
     return outdir
 
-def write_log(message: str, filename: str = pwd):
+def write_log(message: str, filename: str = _LOG_PATH):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}]\n {message}\n"
 
@@ -73,24 +73,23 @@ def prettytable_to_markdown(table):
     header = f"| {' | '.join(table.field_names)} |"
     separator = f"| {' | '.join('---' for _ in table.field_names)} |"
     rows = [f"| {' | '.join(str(cell) for cell in row)} |" for row in table.rows]
-    return "\n".join([header, separator] + rows) 
+    return "\n".join([header, separator] + rows)
 
 def export_markdown(title, description, table = None):
-    table = prettytable_to_markdown(table)
+    md_table = prettytable_to_markdown(table)
     filename = os.path.join(curr, "Outputs", f"{get_hostname()}_summary.md")
     with open(filename, "a") as file:
         if title is not None:
             file.write(f"## {title}\n\n")
         file.write(f"{description}\n")
-        file.write(table)
+        file.write(md_table)
         file.write("\n\n")
-        
 def create_bm_entry(bmName, appName, sku, result):
-    id = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+    entry_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     date = datetime.datetime.now().strftime("%Y-%m-%d")
     ubuntu = get_os_version()
     return {
-        "jobId": id,
+        "jobId": entry_id,
         "appName": appName,
         "bmName": bmName,
         "nodes": "1",

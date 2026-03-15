@@ -22,15 +22,12 @@ class Multichase:
             )
 
             build_path = os.path.join(current, "multichase")
-            os.chdir(build_path)
 
-            results = tools.run_cmd("make", shell=True)
-            os.chdir(current)
+            results = tools.run_cmd("make", shell=True, cwd=build_path)
 
     def run(self):
-        current = os.getcwd()
         logger.info("Running Multichase...")
 
-        results = tools.run_cmd("cd Benchmarks/NVIDIA && sudo chmod 755 run_multichase.sh && ./run_multichase.sh",shell=True)
+        results = tools.run_cmd("sudo chmod 755 run_multichase.sh && ./run_multichase.sh", shell=True, cwd="Benchmarks/NVIDIA")
         print(results.stdout.decode("utf-8"))
         tools.export_markdown("Multichase", results.stdout.decode("utf-8"), None)

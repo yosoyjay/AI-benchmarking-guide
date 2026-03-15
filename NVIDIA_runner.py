@@ -9,7 +9,7 @@ from Benchmarks.NVIDIA import HBMBandwidth as HBM
 from Benchmarks.NVIDIA import NVBandwidth as NV
 from Benchmarks.NVIDIA import NCCLBandwidth as NCCL
 from Benchmarks.NVIDIA import FlashAttention as FA
-from Benchmarks.NVIDIA import FIO
+from Benchmarks import FIO
 from Benchmarks.NVIDIA import CPUStream as CPU
 from Benchmarks.NVIDIA import Multichase as Multichase
 from Benchmarks.NVIDIA import LLMBenchmark as llmb
@@ -178,7 +178,6 @@ def main():
             dispatch[key]()
         except Exception as e:
             logger.warning("%s benchmark failed: %s", name, e)
-        os.chdir(current)
 
 
 if __name__ == "__main__":

@@ -14,14 +14,10 @@ class HBMBandwidth:
         config = tools.load_benchmark_config(os.path.join(dir_path, config_path), self.name)
         self.num_runs, self.interval = self.config_conversion(config)
         self.dir_path = dir_path
-        self.container = None
         self.buffer = []
 
-    def parse_json(self, config):
-        return config["inputs"]["num_runs"], config["inputs"]["interval"]
-
     def config_conversion(self, config) -> tuple[int, int]:
-        return self.parse_json(config)
+        return config["inputs"]["num_runs"], config["inputs"]["interval"]
 
     def build(self):
         path = "BabelStream"

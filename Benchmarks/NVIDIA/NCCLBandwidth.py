@@ -13,7 +13,6 @@ class NCCLBandwidth:
     def __init__(self, path:str, machine: str):
         self.name='NCCLBandwidth'
         self.machine_name = machine
-        self.buffer = []
         self.algo = "NVLS"
         self.env = dict(os.environ)
 
@@ -25,9 +24,7 @@ class NCCLBandwidth:
             logger.info("Building NCCL Library...")
             results = subprocess.run(['git', 'clone', _NCCL_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl')
-            os.chdir(build_path)
-            results = tools.run_cmd('make -j src.build', shell=True)
-            os.chdir(current)
+            results = tools.run_cmd('make -j src.build', shell=True, cwd=build_path)
 
         nccl_home = os.path.join(current, "nccl", "build")
         ld_path = f"{os.path.join(current, 'nccl', 'build', 'lib')}:{os.environ.get('LD_LIBRARY_PATH', '')}"
@@ -39,14 +36,10 @@ class NCCLBandwidth:
             logger.info("Building NCCL Test...")
             results = subprocess.run(['git', 'clone', _NCCL_TESTS_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl-tests')
-            os.chdir(build_path)
-            results = tools.run_cmd(['make'], env=self.env)
-        else:
-            build_path = os.path.join(current, 'nccl-tests')
-            os.chdir(build_path)
+            results = tools.run_cmd(['make'], env=self.env, cwd=build_path)
+        self.build_dir = os.path.join(current, 'nccl-tests')
 
     def run(self):
-        current = os.getcwd()
         num_gpus_result = subprocess.run("nvidia-smi --query-gpu=name --format=csv,noheader | wc -l", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if num_gpus_result.returncode != 0 or not num_gpus_result.stdout.decode('utf-8').strip():
             logger.warning("nvidia-smi failed to detect GPU count, defaulting to 8")
@@ -57,7 +50,8 @@ class NCCLBandwidth:
             self.algo = "Ring"
         logger.info("Running NCCL AllReduce on %s GPUs", num_gpus)
 
-        results = tools.run_cmd(f'NCCL_ALGO={self.algo} ./build/all_reduce_perf -b 8 -e 8G -f 2 -g {num_gpus} -n 40 | grep float', shell=True, env=self.env)
+        all_reduce_bin = os.path.join(self.build_dir, "build", "all_reduce_perf")
+        results = tools.run_cmd(f'NCCL_ALGO={self.algo} {all_reduce_bin} -b 8 -e 8G -f 2 -g {num_gpus} -n 40 | grep float', shell=True, env=self.env)
         res = results.stdout.decode('utf-8').split('\n')
         sizes = []
         log = []
@@ -73,4 +67,3 @@ class NCCLBandwidth:
         table1.add_column(runs[1], log)
         print(table1)
         tools.export_markdown("NCCL Bandwidth", f"The values (in GB/s) are the bus bandwidth values obtained from the NCCL AllReduce ({self.algo} algorithm) tests in-place operations, varying from 1KB to 8GB of data.", table1)
-        os.chdir(current)

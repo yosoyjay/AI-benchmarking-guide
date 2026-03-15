@@ -22,11 +22,9 @@ class FlashAttention:
         if not isdir:
             results = subprocess.run(f'git clone {_FLASH_ATTENTION_REPO}',shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         build_path = os.path.join(current, 'flash-attention/benchmarks')
-        os.chdir(build_path)
 
         logger.info("Running Flash Attention with batch size=2, seqlen=8192...")
-        results = tools.run_cmd('python3 benchmark_flash_attention.py | grep -A 2 "batch_size=2, seqlen=8192 ###"',shell=True)
-        os.chdir(current)
+        results = tools.run_cmd('python3 benchmark_flash_attention.py | grep -A 2 "batch_size=2, seqlen=8192 ###"',shell=True, cwd=build_path)
 
         table = PrettyTable(["causal", "headdim", "Flash2 total (TFLOPs)", "Pytorch total (TFLOPs)"])
         for m in re.findall(r"causal=(\w+), headdim=(\d+).*?fwd \+ bwd: ([\d.]+).*?fwd \+ bwd: ([\d.]+)", results.stdout.decode('utf-8'), re.DOTALL):

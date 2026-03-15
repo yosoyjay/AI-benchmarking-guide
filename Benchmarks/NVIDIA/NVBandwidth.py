@@ -28,31 +28,23 @@ class NVBandwidth:
         current = os.getcwd()
         path ='nvbandwidth'
         isdir = os.path.isdir(path)
+        build_path = os.path.join(current, 'nvbandwidth')
         if not isdir:
             results = subprocess.run(['git', 'clone', _NVBANDWIDTH_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            build_path = os.path.join(current, 'nvbandwidth')
-            os.chdir(build_path)
-            results = subprocess.run(['sed', '-i', r'2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)', 'CMakeLists.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        else:
-            build_path = os.path.join(current, 'nvbandwidth')
-            os.chdir(build_path)
+            results = subprocess.run(['sed', '-i', r'2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)', 'CMakeLists.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=build_path)
 
         if os.path.exists("/.dockerenv"):
-            results = tools.run_cmd('apt update && ./debian_install.sh', shell=True)
+            results = tools.run_cmd('apt update && ./debian_install.sh', shell=True, cwd=build_path)
         else:
-            results = tools.run_cmd('sudo apt update && sudo ./debian_install.sh', shell=True)
-        os.chdir(current)
+            results = tools.run_cmd('sudo apt update && sudo ./debian_install.sh', shell=True, cwd=build_path)
 
     def run(self):
         current = os.getcwd()
-        os.chdir(os.path.join(current, 'nvbandwidth'))
         logger.info("Running NVBandwidth...")
-        results = tools.run_cmd('./nvbandwidth -t device_to_host_memcpy_ce host_to_device_memcpy_ce device_to_device_bidirectional_memcpy_read_ce', shell=True)
+        results = tools.run_cmd('./nvbandwidth -t device_to_host_memcpy_ce host_to_device_memcpy_ce device_to_device_bidirectional_memcpy_read_ce', shell=True, cwd=os.path.join(current, 'nvbandwidth'))
         log = results.stdout.decode('utf-8')
-        os.chdir(current)
 
         self.format_output(log)
-        os.chdir(current)
 
     @staticmethod
     def _parse_sections(text):
@@ -111,8 +103,8 @@ class NVBandwidth:
                 continue
             table[0].insert(0, " ")
             t = PrettyTable(table[0])
-            for j in range(1, len(table)):
-                t.add_row(table[j])
+            for row in table[1:]:
+                t.add_row(row)
             print(result_labels[i])
             print(t)
 

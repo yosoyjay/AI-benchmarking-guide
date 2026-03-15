@@ -18,7 +18,7 @@ class GEMMCublastLt:
         self.w = w
         self.bindir = ''
         self.machine_name = machine
-       
+
         # A100 does not support fp8
         if "A100" in machine:
             logger.warning("A100 does not support %s, using fp16 instead", self.datatype)
@@ -41,38 +41,37 @@ class GEMMCublastLt:
                     path,
                 ],
             )
-            
+
         if self.datatype == "fp4e2m1":
             results = subprocess.run("cd superbenchmark && git checkout fp4", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             results = subprocess.run("cd superbenchmark && git checkout main", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        
+
         current = os.getcwd()
         build_path = os.path.join(
             current,
             "superbenchmark/superbench/benchmarks/micro_benchmarks/cublaslt_gemm",
         )
-        os.chdir(build_path)
 
         results = tools.run_cmd(
             ["cmake", "-S", "./"],
+            cwd=build_path,
         )
 
         results = tools.run_cmd(
             ["make"],
+            cwd=build_path,
         )
         logger.debug(results.stderr.decode('utf-8'))
         results = subprocess.run(
-            ["mv", "cublaslt_gemm", bindir],
+            ["mv", os.path.join(build_path, "cublaslt_gemm"), bindir],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        os.chdir(current)
 
     # run GEMM with predetermined matrix sizes that are commonly used in transformers
     def run_model_sizes(self):
         logger.info("Running CublasLt with datatype %s...", self.datatype)
-        current = os.getcwd()
         if self.datatype == "fp8e4m3":
             m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
             n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
@@ -85,12 +84,12 @@ class GEMMCublastLt:
             m_dims = [1024, 2048, 4096, 8192, 16384, 1024, 6144, 802816]
             n_dims = [1024, 2048, 4096, 8192, 16384, 2145, 12288, 192]
             k_dims = [1024, 2048, 4096, 8192, 16384, 1024, 12288, 768]
-        os.chdir(self.bindir)
+        cublaslt_bin = os.path.join(self.bindir, "cublaslt_gemm")
         buffer = []
         for m, n, k in zip(m_dims, n_dims, k_dims):
             results = subprocess.run(
                 [
-                    "./cublaslt_gemm",
+                    cublaslt_bin,
                     "-m",
                     str(m),
                     "-n",
@@ -125,4 +124,3 @@ class GEMMCublastLt:
                 logger.warning("Skipping cublaslt_gemm result with %d columns (expected 6): %s", len(item), item)
         print(table1)
         tools.export_markdown("GEMM CuBLASLt", f"The results shown below are with random initialization (best representation of real-life workloads) {self.datatype}, and {self.w} warmup iterations.", table1)
-        os.chdir(current)
