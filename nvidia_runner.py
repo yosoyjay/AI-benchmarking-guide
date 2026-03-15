@@ -111,8 +111,7 @@ def run_CPUStream(sku_name):
 
 
 def run_FIO(sku_name):
-    test = FIO.FIO("config.json", sku_name)
-    test.run()
+    FIO.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_LLMBenchmark(sku_name, current):

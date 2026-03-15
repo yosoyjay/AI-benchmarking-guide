@@ -128,8 +128,7 @@ def run_FlashAttention(machine_name, current):
 
 
 def run_FIO(machine_name, current):
-    test = FIO.FIO(current, machine_name)
-    test.run()
+    FIO.run(work_dir=current, machine_name=machine_name)
 
 
 def run_HBMBandwidth(machine_name, current):
