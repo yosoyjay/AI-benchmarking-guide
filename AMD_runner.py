@@ -40,22 +40,42 @@ def get_system_specs():
     with open("Outputs/system_specs.txt", "w") as file:
 
         results = subprocess.run("rocminfo | grep 'ROCk module version'", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        rocm_version = results.stdout.decode('utf-8').strip().split(" ")[3]
+        if results.returncode == 0:
+            parts = results.stdout.decode('utf-8').strip().split(" ")
+            rocm_version = parts[3] if len(parts) >= 4 else "unknown"
+        else:
+            rocm_version = "unknown"
         file.write("ROCm version     : "+rocm_version+"\n")
 
         results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        ubuntu = results.stdout.decode('utf-8').strip().split("\t")[1]
+        if results.returncode == 0:
+            parts = results.stdout.decode('utf-8').strip().split("\t")
+            ubuntu = parts[1] if len(parts) >= 2 else "unknown"
+        else:
+            ubuntu = "unknown"
         file.write("ubuntu version   : "+ubuntu+"\n")
 
-        results = subprocess.run("grep 'stepping\|model\|microcode' /proc/cpuinfo | grep microcode", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        microcode = results.stdout.decode('utf-8').split("\n")[0]
+        results = subprocess.run("grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep microcode", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if results.returncode == 0:
+            lines = results.stdout.decode('utf-8').split("\n")
+            microcode = lines[0] if lines else ""
+        else:
+            microcode = ""
         file.write(microcode+"\n")
 
-        results = subprocess.run("grep 'stepping\|model\|microcode' /proc/cpuinfo | grep name", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        file.write(results.stdout.decode('utf-8').split("\n")[0]+"\n")
+        results = subprocess.run("grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep name", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if results.returncode == 0:
+            lines = results.stdout.decode('utf-8').split("\n")
+            file.write((lines[0] if lines else "")+"\n")
+        else:
+            file.write("\n")
 
-        results = subprocess.run("grep 'cores\|model\|microcode' /proc/cpuinfo | grep cores", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        file.write(results.stdout.decode('utf-8').split("\n")[0])
+        results = subprocess.run("grep 'cores\\|model\\|microcode' /proc/cpuinfo | grep cores", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if results.returncode == 0:
+            lines = results.stdout.decode('utf-8').split("\n")
+            file.write(lines[0] if lines else "")
+        else:
+            file.write("")
     return _detect_sku()
 
 def run_TransferBench():
