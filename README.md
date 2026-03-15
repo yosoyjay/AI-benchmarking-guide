@@ -7,8 +7,8 @@ A CLI tool that runs GPU microbenchmarks and end-to-end LLM workloads on Azure G
 | NVIDIA | AMD |
 |---|---|
 | ND A100 v4 | ND MI300X v5 |
-| ND H100 v5 | |
-| ND H200 v5 | |
+| ND H100 v5 | ND MI250X v4 |
+| ND H200 v5 | ND MI250 v4 |
 | ND GB200 v6 | |
 | ND GB300 v6 | |
 
@@ -222,6 +222,10 @@ The `LLAMA3Pretraining` section configures the NeMo container image, training sc
 
 ## Benchmark reference
 
+### Shared benchmarks
+
+**FIO** ([source](benchmarks/fio.py)) -- Measures storage I/O throughput and latency using the `fio` tool. Tests sequential and random read/write patterns. Available on both NVIDIA and AMD platforms. Requires the `fio` system package (`sudo apt install fio`).
+
 ### NVIDIA benchmarks
 
 **CuBLASLt GEMM** ([source](benchmarks/nvidia/gemm_cublas_lt.py)) -- Measures matrix multiplication throughput using the cuBLAS library. Tests varying matrix sizes (m, n, k) with random initialization to represent realistic workloads. Configurable datatype (FP8, FP4, FP16) via `config.json`.
@@ -257,6 +261,8 @@ The `LLAMA3Pretraining` section configures the NeMo container image, training sc
 
 **LLM Inference** ([source](benchmarks/amd/llm_benchmark.py)) -- Runs end-to-end LLM inference using vLLM with Llama 3 models. Requires HuggingFace credentials.
 
+The hipBLASLt GEMM and RCCL benchmarks run inside pre-built Docker containers. See [`dockerfiles/README.md`](dockerfiles/README.md) for build and update instructions.
+
 ## Reference results
 
 Benchmark results for each supported SKU are in the [`Azure_Results/`](Azure_Results/) directory:
@@ -278,8 +284,8 @@ pre-commit install
 Run checks:
 
 ```bash
-ruff check .
-black --check .
+uv run ruff check .
+uv run black --check .
 uv run --with mypy mypy --ignore-missing-imports <file>
-pytest
+uv run pytest
 ```
