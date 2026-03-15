@@ -10,7 +10,7 @@ class HBMBandwidth:
     def __init__(self, config_path: str, dir_path: str, machine: str):
         self.name = "HBMBandwidth"
         self.machine_name = machine
-        config = self.get_config(dir_path + '/' + config_path)
+        config = self.get_config(os.path.join(dir_path, config_path))
         self.num_runs, self.interval = self.config_conversion(config)
         self.dir_path = dir_path
         self.container = None

@@ -12,7 +12,7 @@ class CPUStream:
         self.machine_name = machine
         config = self.get_config(path)
         self.num_runs, self.interval = self.config_conversion(config)
-        self.cpu_count = os.cpu_count() or 128
+        self.cpu_count = os.cpu_count() or 4
         self.buffer = []
 
     def get_config(self, path: str):

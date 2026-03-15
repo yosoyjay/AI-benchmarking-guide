@@ -17,6 +17,7 @@ class GEMMCublastLt:
        
         # A100 does not support fp8
         if "A100" in machine:
+            print(f"Warning: A100 does not support {self.datatype}, using fp16 instead")
             self.datatype = "fp16"
 
     def get_config(self, path: str):
