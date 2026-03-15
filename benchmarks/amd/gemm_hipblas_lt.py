@@ -124,27 +124,19 @@ def _build(container, work_dir):
 
 def run(work_dir, machine_name):
     """Clone, build, run HipBLASLt GEMM inside Docker, parse and report."""
-    results_path = os.path.join(work_dir, "Outputs", "GEMMHipBLAS_results.txt")
-
     with AmdContainer(_HIPBLAS_IMAGE, work_dir, entrypoint="/bin/bash") as container:
         _build(container, work_dir)
 
         logger.info("Running HipBLAS...")
-        script_dir = os.path.join(work_dir, "benchmarks", "amd")
-        for m, n, k in zip(_M_DIMS, _N_DIMS, _K_DIMS):
-            res = container.exec_run(
-                ["/bin/sh", "-c", f"cd {script_dir} && ./hipBLAS_runner.sh {m} {n} {k}"],
-            )
-            tools.write_log(res.output.decode("utf-8"))
-
-    # Parse results written by hipBLAS_runner.sh
-    try:
-        with open(results_path) as f:
-            text = f.read()
-        rows = parse_hipblas_results(text)
-    except FileNotFoundError:
-        logger.warning("GEMMHipBLAS_results.txt not found, skipping result table")
+        bench_bin = os.path.join(work_dir, "hipBLASLt", "build", "release", "clients", "staging", "hipblaslt-bench")
         rows = []
+        for m, n, k in zip(_M_DIMS, _N_DIMS, _K_DIMS):
+            yaml_cfg = _build_hipblas_yaml(m, n, k)
+            cmd = f'{bench_bin} --device 0 --flush --yaml - <<< "{yaml_cfg}"' f' | grep -B 1 "T,N,0"'
+            res = container.exec_run(["/bin/bash", "-c", cmd])
+            output = res.output.decode("utf-8")
+            tools.write_log(output)
+            rows.extend(parse_hipblas_results(output))
 
     table = _build_table(rows)
     print(table)
@@ -153,9 +145,3 @@ def run(work_dir, machine_name):
         f"The results shown below are with random initialization (best representation of real-life workloads) {_DATATYPE}, and {_WARMUP} warmup iterations.",
         table,
     )
-
-    # Clean up results file
-    try:
-        os.remove(results_path)
-    except FileNotFoundError:
-        pass
