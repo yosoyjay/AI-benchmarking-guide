@@ -258,12 +258,18 @@ def main() -> None:
     }
 
     selected = list(dispatch.keys()) if "all" in args.benchmarks else args.benchmarks
+    failed = []
     for key in selected:
         name = BENCHMARKS[key]
         try:
             dispatch[key]()
-        except Exception as e:
-            logger.warning("%s benchmark failed: %s", name, e)
+        except Exception:
+            logger.exception("%s benchmark failed", name)
+            failed.append(name)
+
+    if failed:
+        logger.error("Failed benchmarks: %s", ", ".join(failed))
+        sys.exit(1)
 
 
 if __name__ == "__main__":
