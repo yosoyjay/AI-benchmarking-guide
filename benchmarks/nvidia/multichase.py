@@ -8,6 +8,7 @@ from infra import tools
 logger = logging.getLogger(__name__)
 
 _MULTICHASE_REPO = "https://github.com/google/multichase"
+_MULTICHASE_COMMIT = "a1ffd89b20d033f28fa44d6ee92d7a378b1b1dca"
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +60,7 @@ def _build(work_dir):
     repo_dir = os.path.join(work_dir, "multichase")
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _MULTICHASE_REPO, "multichase"], cwd=work_dir)
+        tools.run_cmd(["git", "checkout", _MULTICHASE_COMMIT], cwd=repo_dir)
         tools.run_cmd(["make"], cwd=repo_dir)
 
 

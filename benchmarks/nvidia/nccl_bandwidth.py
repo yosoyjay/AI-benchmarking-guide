@@ -10,7 +10,9 @@ from infra import tools
 logger = logging.getLogger(__name__)
 
 _NCCL_REPO = "https://github.com/NVIDIA/nccl.git"
+_NCCL_COMMIT = "361915904b456d397e6e1578f8f65ea1a45bdd28"
 _NCCL_TESTS_REPO = "https://github.com/NVIDIA/nccl-tests.git"
+_NCCL_TESTS_COMMIT = "af1dcac92ad7ed81ffa32b593480ab3f0f7baa01"
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +64,7 @@ def _build(work_dir, env):
     if not os.path.isdir(nccl_dir):
         logger.info("Building NCCL Library...")
         tools.run_cmd(["git", "clone", _NCCL_REPO, "nccl"], cwd=work_dir)
+        tools.run_cmd(["git", "checkout", _NCCL_COMMIT], cwd=nccl_dir)
         tools.run_cmd(["make", "-j", "src.build"], cwd=nccl_dir)
 
     nccl_home = os.path.join(nccl_dir, "build")
@@ -72,6 +75,7 @@ def _build(work_dir, env):
     if not os.path.isdir(tests_dir):
         logger.info("Building NCCL Test...")
         tools.run_cmd(["git", "clone", _NCCL_TESTS_REPO, "nccl-tests"], cwd=work_dir)
+        tools.run_cmd(["git", "checkout", _NCCL_TESTS_COMMIT], cwd=tests_dir)
         tools.run_cmd(["make"], env=env, cwd=tests_dir)
 
     return tests_dir, env

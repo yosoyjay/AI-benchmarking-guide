@@ -11,6 +11,10 @@ from infra import tools
 logger = logging.getLogger(__name__)
 
 _SUPERBENCHMARK_REPO = "https://github.com/gitaumark/superbenchmark"
+_SUPERBENCHMARK_COMMITS = {
+    "main": "ece4c2a05d20aa7200ed24a25baa6051d9148c8b",
+    "fp4": "d08fffbbc363f6840420730ee0dd7ad469f3d9de",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +61,7 @@ def _build(work_dir, datatype):
         tools.run_cmd(["git", "clone", _SUPERBENCHMARK_REPO, "superbenchmark"], cwd=work_dir)
 
     branch = "fp4" if datatype == "fp4e2m1" else "main"
-    tools.run_cmd(["git", "checkout", branch], cwd=repo_dir)
+    tools.run_cmd(["git", "checkout", _SUPERBENCHMARK_COMMITS[branch]], cwd=repo_dir)
 
     build_path = os.path.join(
         repo_dir,

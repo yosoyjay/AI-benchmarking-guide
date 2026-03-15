@@ -9,6 +9,7 @@ from infra import tools
 logger = logging.getLogger(__name__)
 
 _BABELSTREAM_REPO = "https://github.com/UoB-HPC/BabelStream"
+_BABELSTREAM_COMMIT = "2411a9ac6832eb6562d81c81d016c53a66355eed"
 
 
 # ---------------------------------------------------------------------------
@@ -21,6 +22,7 @@ def _build(work_dir):
     repo_dir = os.path.join(work_dir, "CPUStream")
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _BABELSTREAM_REPO, "CPUStream"], cwd=work_dir)
+        tools.run_cmd(["git", "checkout", _BABELSTREAM_COMMIT], cwd=repo_dir)
 
     build_dir = os.path.join(repo_dir, "build")
     if not os.path.isdir(build_dir):

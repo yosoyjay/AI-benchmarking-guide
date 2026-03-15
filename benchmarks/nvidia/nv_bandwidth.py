@@ -10,6 +10,7 @@ from infra import tools
 logger = logging.getLogger(__name__)
 
 _NVBANDWIDTH_REPO = "https://github.com/NVIDIA/nvbandwidth"
+_NVBANDWIDTH_COMMIT = "66746a3bef61c8c2e12ab34955310da70b9e38cb"
 
 TEST_NAMES = [
     "device_to_host_memcpy_ce",
@@ -98,6 +99,7 @@ def _build(work_dir):
     repo_dir = os.path.join(work_dir, "nvbandwidth")
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _NVBANDWIDTH_REPO, "nvbandwidth"], cwd=work_dir)
+        tools.run_cmd(["git", "checkout", _NVBANDWIDTH_COMMIT], cwd=repo_dir)
         tools.run_cmd(
             ["sed", "-i", r"2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)", "CMakeLists.txt"],
             cwd=repo_dir,

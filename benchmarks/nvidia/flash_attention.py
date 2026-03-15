@@ -11,6 +11,7 @@ from infra import tools
 logger = logging.getLogger(__name__)
 
 _FLASH_ATTENTION_REPO = "https://github.com/Dao-AILab/flash-attention.git"
+_FLASH_ATTENTION_COMMIT = "fb5c4fa89ab427371210cb14141e2023919d3120"
 
 
 # ---------------------------------------------------------------------------
@@ -70,6 +71,7 @@ def run(work_dir: str, machine_name: str) -> list[dict]:
     repo_dir = os.path.join(work_dir, "flash-attention")
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _FLASH_ATTENTION_REPO], cwd=work_dir)
+        tools.run_cmd(["git", "checkout", _FLASH_ATTENTION_COMMIT], cwd=repo_dir)
 
     bench_dir = os.path.join(repo_dir, "benchmarks")
     logger.info("Running Flash Attention with batch size=2, seqlen=8192...")

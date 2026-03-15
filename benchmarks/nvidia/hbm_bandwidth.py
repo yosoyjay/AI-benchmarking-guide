@@ -9,6 +9,7 @@ from infra import tools
 logger = logging.getLogger(__name__)
 
 _BABELSTREAM_REPO = "https://github.com/gitaumark/BabelStream"
+_BABELSTREAM_COMMIT = "1a1a729517df6c44bfbfe6d0db36a24fe8dc6726"
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +36,7 @@ def _build(work_dir, machine_name):
     repo_dir = os.path.join(work_dir, "BabelStream")
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _BABELSTREAM_REPO, "BabelStream"], cwd=work_dir)
+        tools.run_cmd(["git", "checkout", _BABELSTREAM_COMMIT], cwd=repo_dir)
 
     build_dir = os.path.join(repo_dir, "build")
     if not os.path.isdir(build_dir):
