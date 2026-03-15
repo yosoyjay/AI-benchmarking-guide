@@ -3,6 +3,8 @@ import logging
 import os
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 
 from prettytable import PrettyTable
 
@@ -16,9 +18,12 @@ from benchmarks.nvidia import llm_benchmark as llmb
 from benchmarks.nvidia import multichase as Multichase
 from benchmarks.nvidia import nccl_bandwidth as NCCL
 from benchmarks.nvidia import nv_bandwidth as NV
-from infra import tools
+from infra import process, tools
+from infra.capture import RunContext, get_version, make_run_dir
 
 logger = logging.getLogger(__name__)
+
+_PLATFORM = "nvidia"
 
 
 def get_system_specs(current, host_name):
@@ -79,52 +84,98 @@ def get_system_specs(current, host_name):
     return output[0].strip()
 
 
-def run_CublasLt(sku_name):
-    gemm.run(work_dir=os.getcwd(), machine_name=sku_name)
+def _make_ctx(benchmark, sku, results_dir, version, timestamp):
+    """Create a RunContext for a single benchmark."""
+    run_dir = make_run_dir(results_dir, benchmark, sku, timestamp)
+    return RunContext(
+        benchmark=benchmark,
+        sku=sku,
+        platform=_PLATFORM,
+        version=version,
+        timestamp=timestamp,
+        results_dir=results_dir,
+        run_dir=run_dir,
+    )
 
 
-def run_HBMBandwidth(sku_name):
+def run_CublasLt(sku_name, ctx=None):
+    parsed = gemm.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.gemm_cublas_lt_to_csv(ctx, parsed)
+        process.process_run("gemm_cublas_lt", ctx, csv_rows)
+
+
+def run_HBMBandwidth(sku_name, ctx=None):
     if "GB200" in sku_name:
         logger.warning("HBM bandwidth Test not supported on GB200 yet")
         return
-    HBM.run(work_dir=os.getcwd(), machine_name=sku_name)
+    parsed = HBM.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.hbm_bandwidth_to_csv(ctx, parsed)
+        process.process_run("hbm_bandwidth", ctx, csv_rows)
 
 
-def run_NVBandwidth(sku_name):
-    NV.run(work_dir=os.getcwd(), machine_name=sku_name)
+def run_NVBandwidth(sku_name, ctx=None):
+    parsed = NV.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.nv_bandwidth_to_csv(ctx, parsed)
+        process.process_run("nv_bandwidth", ctx, csv_rows)
 
 
-def run_NCCLBandwidth(sku_name):
-    NCCL.run(work_dir=os.getcwd(), machine_name=sku_name)
+def run_NCCLBandwidth(sku_name, ctx=None):
+    parsed = NCCL.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.nccl_bandwidth_to_csv(ctx, parsed)
+        process.process_run("nccl_bandwidth", ctx, csv_rows)
 
 
-def run_FlashAttention(sku_name):
-    FA.run(work_dir=os.getcwd(), machine_name=sku_name)
+def run_FlashAttention(sku_name, ctx=None):
+    parsed = FA.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.flash_attention_to_csv(ctx, parsed)
+        process.process_run("flash_attention", ctx, csv_rows)
 
 
-def run_Multichase(sku_name):
-    Multichase.run(work_dir=os.getcwd(), machine_name=sku_name)
+def run_Multichase(sku_name, ctx=None):
+    result = Multichase.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        node_names, rows = result
+        csv_rows = process.multichase_to_csv(ctx, node_names, rows)
+        process.process_run("multichase", ctx, csv_rows)
 
 
-def run_CPUStream(sku_name):
-    CPU.run(work_dir=os.getcwd(), machine_name=sku_name)
+def run_CPUStream(sku_name, ctx=None):
+    parsed = CPU.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.cpu_stream_to_csv(ctx, parsed)
+        process.process_run("cpu_stream", ctx, csv_rows)
 
 
-def run_FIO(sku_name):
-    FIO.run(work_dir=os.getcwd(), machine_name=sku_name)
+def run_FIO(sku_name, ctx=None):
+    parsed = FIO.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.fio_to_csv(ctx, parsed)
+        process.process_run("fio", ctx, csv_rows)
 
 
-def run_LLMBenchmark(sku_name):
-    llmb.run(work_dir=os.getcwd(), machine_name=sku_name)
+def run_LLMBenchmark(sku_name, ctx=None):
+    parsed = llmb.run(work_dir=os.getcwd(), machine_name=sku_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.llm_benchmark_nv_to_csv(ctx, parsed)
+        process.process_run("llm_benchmark", ctx, csv_rows)
 
 
-def run_LLAMA3Pretrain(sku_name, model_size="8b"):
+def run_LLAMA3Pretrain(sku_name, model_size="8b", ctx=None):
     if "GB200" in sku_name or "H200" in sku_name:
         test = llama3pre.LLAMA3Pretraining("config.json", sku_name, model_size)
     else:
         logger.warning("LLAMA3 Pretraining not supported on %s yet", sku_name)
         return
-    test.run()
+    result = test.run(ctx=ctx)
+    if ctx is not None and result is not None:
+        time_ss, loss_ss = result
+        csv_rows = process.llama3_pretrain_to_csv(ctx, time_ss, loss_ss)
+        process.process_run("llama3_pretrain", ctx, csv_rows)
 
 
 BENCHMARKS = {
@@ -160,18 +211,27 @@ def main():
     tools.create_dir("Outputs")
     sku_name = get_system_specs(current, host_name)
 
+    # Structured output pipeline
+    version = get_version()
+    results_dir = Path(current) / "results"
+    results_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now()
+
+    def _ctx(benchmark):
+        return _make_ctx(benchmark, sku_name, results_dir, version, timestamp)
+
     dispatch = {
-        "gemm": lambda: run_CublasLt(sku_name),
-        "nccl": lambda: run_NCCLBandwidth(sku_name),
-        "hbm": lambda: run_HBMBandwidth(sku_name),
-        "nv": lambda: run_NVBandwidth(sku_name),
-        "fa": lambda: run_FlashAttention(sku_name),
-        "multichase": lambda: run_Multichase(sku_name),
-        "cpustream": lambda: run_CPUStream(sku_name),
-        "fio": lambda: run_FIO(sku_name),
-        "llm": lambda: run_LLMBenchmark(sku_name),
-        "llama_8b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "8b"),
-        "llama_3b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "3b"),
+        "gemm": lambda: run_CublasLt(sku_name, ctx=_ctx("gemm_cublas_lt")),
+        "nccl": lambda: run_NCCLBandwidth(sku_name, ctx=_ctx("nccl_bandwidth")),
+        "hbm": lambda: run_HBMBandwidth(sku_name, ctx=_ctx("hbm_bandwidth")),
+        "nv": lambda: run_NVBandwidth(sku_name, ctx=_ctx("nv_bandwidth")),
+        "fa": lambda: run_FlashAttention(sku_name, ctx=_ctx("flash_attention")),
+        "multichase": lambda: run_Multichase(sku_name, ctx=_ctx("multichase")),
+        "cpustream": lambda: run_CPUStream(sku_name, ctx=_ctx("cpu_stream")),
+        "fio": lambda: run_FIO(sku_name, ctx=_ctx("fio")),
+        "llm": lambda: run_LLMBenchmark(sku_name, ctx=_ctx("llm_benchmark")),
+        "llama_8b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "8b", ctx=_ctx("llama3_pretrain")),
+        "llama_3b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "3b", ctx=_ctx("llama3_pretrain")),
     }
 
     selected = list(dispatch.keys()) if "all" in args.benchmarks else args.benchmarks

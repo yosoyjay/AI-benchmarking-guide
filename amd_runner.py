@@ -2,6 +2,8 @@ import argparse
 import logging
 import os
 import subprocess
+from datetime import datetime
+from pathlib import Path
 
 from benchmarks import fio as FIO
 from benchmarks.amd import flash_attention as FA
@@ -10,9 +12,12 @@ from benchmarks.amd import hbm_bandwidth as HBM
 from benchmarks.amd import llm_benchmark as llmb
 from benchmarks.amd import rccl_bandwidth as RCCL
 from benchmarks.amd import transfer_bench as TB
-from infra import tools
+from infra import process, tools
+from infra.capture import RunContext, get_version, make_run_dir
 
 logger = logging.getLogger(__name__)
+
+_PLATFORM = "amd"
 
 _SKU_MAP = {
     "MI300X": "ND_MI300X_v5",
@@ -103,32 +108,69 @@ def get_system_specs():
     return _detect_sku()
 
 
-def run_TransferBench(machine_name, current):
-    TB.run(work_dir=current, machine_name=machine_name)
+def _make_ctx(benchmark, sku, results_dir, version, timestamp):
+    """Create a RunContext for a single benchmark."""
+    run_dir = make_run_dir(results_dir, benchmark, sku, timestamp)
+    return RunContext(
+        benchmark=benchmark,
+        sku=sku,
+        platform=_PLATFORM,
+        version=version,
+        timestamp=timestamp,
+        results_dir=results_dir,
+        run_dir=run_dir,
+    )
 
 
-def run_GEMMHipBLAS(machine_name, current):
-    GEMM.run(work_dir=current, machine_name=machine_name)
+def run_TransferBench(machine_name, current, ctx=None):
+    parsed = TB.run(work_dir=current, machine_name=machine_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.transfer_bench_to_csv(ctx, parsed)
+        process.process_run("transfer_bench", ctx, csv_rows)
 
 
-def run_RCCLBandwidth(machine_name, current):
-    RCCL.run(work_dir=current, machine_name=machine_name)
+def run_GEMMHipBLAS(machine_name, current, ctx=None):
+    parsed = GEMM.run(work_dir=current, machine_name=machine_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.gemm_hipblas_lt_to_csv(ctx, parsed)
+        process.process_run("gemm_hipblas_lt", ctx, csv_rows)
 
 
-def run_FlashAttention(machine_name, current):
-    FA.run(work_dir=current, machine_name=machine_name)
+def run_RCCLBandwidth(machine_name, current, ctx=None):
+    all_parsed = RCCL.run(work_dir=current, machine_name=machine_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = []
+        for algo, rows in all_parsed.items():
+            csv_rows.extend(process.rccl_bandwidth_to_csv(ctx, rows, algo))
+        process.process_run("rccl_bandwidth", ctx, csv_rows)
 
 
-def run_FIO(machine_name, current):
-    FIO.run(work_dir=current, machine_name=machine_name)
+def run_FlashAttention(machine_name, current, ctx=None):
+    parsed = FA.run(work_dir=current, machine_name=machine_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.flash_attention_to_csv(ctx, parsed)
+        process.process_run("flash_attention", ctx, csv_rows)
 
 
-def run_HBMBandwidth(machine_name, current):
-    HBM.run(work_dir=current, machine_name=machine_name)
+def run_FIO(machine_name, current, ctx=None):
+    parsed = FIO.run(work_dir=current, machine_name=machine_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.fio_to_csv(ctx, parsed)
+        process.process_run("fio", ctx, csv_rows)
 
 
-def run_LLMBenchmark(machine_name, current):
-    llmb.run(work_dir=current, machine_name=machine_name)
+def run_HBMBandwidth(machine_name, current, ctx=None):
+    parsed = HBM.run(work_dir=current, machine_name=machine_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.hbm_bandwidth_to_csv(ctx, parsed)
+        process.process_run("hbm_bandwidth", ctx, csv_rows)
+
+
+def run_LLMBenchmark(machine_name, current, ctx=None):
+    parsed = llmb.run(work_dir=current, machine_name=machine_name, ctx=ctx)
+    if ctx is not None:
+        csv_rows = process.llm_benchmark_amd_to_csv(ctx, parsed)
+        process.process_run("llm_benchmark", ctx, csv_rows)
 
 
 BENCHMARKS = {
@@ -159,14 +201,23 @@ def main():
     tools.create_dir("Outputs")
     machine_name = get_system_specs()
 
+    # Structured output pipeline
+    version = get_version()
+    results_dir = Path(current) / "results"
+    results_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now()
+
+    def _ctx(benchmark):
+        return _make_ctx(benchmark, machine_name, results_dir, version, timestamp)
+
     dispatch = {
-        "gemm": lambda: run_GEMMHipBLAS(machine_name, current),
-        "rccl": lambda: run_RCCLBandwidth(machine_name, current),
-        "hbm": lambda: run_HBMBandwidth(machine_name, current),
-        "transfer": lambda: run_TransferBench(machine_name, current),
-        "fa": lambda: run_FlashAttention(machine_name, current),
-        "fio": lambda: run_FIO(machine_name, current),
-        "llm": lambda: run_LLMBenchmark(machine_name, current),
+        "gemm": lambda: run_GEMMHipBLAS(machine_name, current, ctx=_ctx("gemm_hipblas_lt")),
+        "rccl": lambda: run_RCCLBandwidth(machine_name, current, ctx=_ctx("rccl_bandwidth")),
+        "hbm": lambda: run_HBMBandwidth(machine_name, current, ctx=_ctx("hbm_bandwidth")),
+        "transfer": lambda: run_TransferBench(machine_name, current, ctx=_ctx("transfer_bench")),
+        "fa": lambda: run_FlashAttention(machine_name, current, ctx=_ctx("flash_attention")),
+        "fio": lambda: run_FIO(machine_name, current, ctx=_ctx("fio")),
+        "llm": lambda: run_LLMBenchmark(machine_name, current, ctx=_ctx("llm_benchmark")),
     }
 
     selected = list(dispatch.keys()) if "all" in args.benchmarks else args.benchmarks
