@@ -70,22 +70,23 @@ class RCCLBandwidth:
         buffer=[["8 ","16 ","32 ","64 ","128 ","256 ","512 ","1K","2K","4K","8K","16K","32K","65K","132K","256K", "524K","1M","2M","4M","8M","16M","33M","67M","134M","268M","536M","1G","2G","4G","8G"]]
         runs = ["Tree", "Ring", "NVLS", "NVLSTree"]
         print("Running RCCL AllReduce...")
-        for run in runs:
-            run_cmd = "NCCL_ALGO=" + run + " " + self.dir_path +"/rccl-tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 8 -n 40 | grep float"
-            run_cmd = '/bin/sh -c "' + run_cmd + '"'
-            results = self.container.exec_run(run_cmd, stderr=True)
-            if results.exit_code != 0:
-                tools.write_log(results.output.decode('utf-8'))
-                self.container.kill()
-                return
-            res = results.output.decode('utf-8').split('\n')
-            log = []
-            for line in res:
-                line = line.split()
-                if len(line) == 13:
-                    log.append(line[11])
-            buffer.append(log)
-        self.container.kill()
+        try:
+            for run in runs:
+                run_cmd = "NCCL_ALGO=" + run + " " + self.dir_path +"/rccl-tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 8 -n 40 | grep float"
+                run_cmd = '/bin/sh -c "' + run_cmd + '"'
+                results = self.container.exec_run(run_cmd, stderr=True)
+                if results.exit_code != 0:
+                    tools.write_log(results.output.decode('utf-8'))
+                    return
+                res = results.output.decode('utf-8').split('\n')
+                log = []
+                for line in res:
+                    line = line.split()
+                    if len(line) == 13:
+                        log.append(line[11])
+                buffer.append(log)
+        finally:
+            self.container.kill()
         table1 = PrettyTable()
         runs = ["Message Size", "Tree", "Ring", "NVLS", "NVLSTree"]
 

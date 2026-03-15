@@ -61,37 +61,39 @@ class GEMMHipBLAS:
         n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
         k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
 
-        for i in range(len(m_dims)):
-            hipblas_cmd = 'cd ' + self.dir_path + '/Benchmarks/AMD && ./hipBLAS_runner.sh ' + str(m_dims[i]) + ' ' +  str(n_dims[i]) + ' ' + str(k_dims[i])
-            results = self.container.exec_run(f'/bin/sh -c ' + '"' + hipblas_cmd + '"')
-            tools.write_log(results.output.decode('utf-8'))
-
         try:
-            with open(self.dir_path + '/Outputs/GEMMHipBLAS_results.txt', 'r') as resFile:
+            for i in range(len(m_dims)):
+                hipblas_cmd = 'cd ' + self.dir_path + '/Benchmarks/AMD && ./hipBLAS_runner.sh ' + str(m_dims[i]) + ' ' +  str(n_dims[i]) + ' ' + str(k_dims[i])
+                results = self.container.exec_run(f'/bin/sh -c ' + '"' + hipblas_cmd + '"')
+                tools.write_log(results.output.decode('utf-8'))
+
+            try:
+                with open(self.dir_path + '/Outputs/GEMMHipBLAS_results.txt', 'r') as resFile:
+                    table1 = PrettyTable()
+                    table1.field_names = ["M","N","K","TFLOPS"]
+                    for line in resFile:
+                        l = line.strip()
+                        if l and l[0] == "T":
+                            l = l.split(',')
+                            if len(l) >= 7:
+                                m = l[4]
+                                n = l[5]
+                                k = l[6]
+                                tflops = float(l[-3])/1000
+                                table1.add_row([m,n,k,tflops])
+                            else:
+                                print(f"Warning: unexpected format in GEMMHipBLAS results: {line.strip()}")
+            except FileNotFoundError:
+                print("Warning: GEMMHipBLAS_results.txt not found, skipping result table")
                 table1 = PrettyTable()
                 table1.field_names = ["M","N","K","TFLOPS"]
-                for line in resFile:
-                    l = line.strip()
-                    if l and l[0] == "T":
-                        l = l.split(',')
-                        if len(l) >= 7:
-                            m = l[4]
-                            n = l[5]
-                            k = l[6]
-                            tflops = float(l[-3])/1000
-                            table1.add_row([m,n,k,tflops])
-                        else:
-                            print(f"Warning: unexpected format in GEMMHipBLAS results: {line.strip()}")
-        except FileNotFoundError:
-            print("Warning: GEMMHipBLAS_results.txt not found, skipping result table")
-            table1 = PrettyTable()
-            table1.field_names = ["M","N","K","TFLOPS"]
-        except Exception as e:
-            print(f"Warning: error reading GEMMHipBLAS results: {e}")
-            table1 = PrettyTable()
-            table1.field_names = ["M","N","K","TFLOPS"]
+            except Exception as e:
+                print(f"Warning: error reading GEMMHipBLAS results: {e}")
+                table1 = PrettyTable()
+                table1.field_names = ["M","N","K","TFLOPS"]
 
-        print(table1)
-        tools.export_markdown("GEMM HipBLASLt", "The results shown below are with random initialization (best representation of real-life workloads) " + self.datatype +  ", and " + str(self.w) + " warmup iterations.", table1)
-        results = self.container.exec_run(f'/bin/sh -c "rm {self.dir_path}/Outputs/GEMMHipBLAS_results.txt"', stderr=True)
-        self.container.kill()
+            print(table1)
+            tools.export_markdown("GEMM HipBLASLt", "The results shown below are with random initialization (best representation of real-life workloads) " + self.datatype +  ", and " + str(self.w) + " warmup iterations.", table1)
+            results = self.container.exec_run(f'/bin/sh -c "rm {self.dir_path}/Outputs/GEMMHipBLAS_results.txt"', stderr=True)
+        finally:
+            self.container.kill()

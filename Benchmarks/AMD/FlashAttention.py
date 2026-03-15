@@ -51,9 +51,14 @@ class FlashAttention:
 
         self.create_container()
         print("Running Flash Attention...")
-        res = self.container.exec_run(f"bash -c 'python3 {self.dir_path}/flash-attention/benchmarks/benchmark_flash_attention.py | grep -A 2 \"batch_size=2, seqlen=8192 ###\"'")
-        tools.write_log(res.output.decode('utf-8'))
-        self.container.kill()
+        try:
+            res = self.container.exec_run(f"bash -c 'python3 {self.dir_path}/flash-attention/benchmarks/benchmark_flash_attention.py | grep -A 2 \"batch_size=2, seqlen=8192 ###\"'")
+            tools.write_log(res.output.decode('utf-8'))
+        finally:
+            try:
+                self.container.kill()
+            except docker.errors.NotFound:
+                pass  # auto_remove already cleaned up
 
         table = PrettyTable(["causal", "headdim", "Flash2 total (TFLOPs)", "Pytorch total (TFLOPs)"])
         for m in re.findall(r"causal=(\w+), headdim=(\d+).*?fwd \+ bwd: ([\d.]+).*?fwd \+ bwd: ([\d.]+)", res.output.decode('utf-8'), re.DOTALL):
