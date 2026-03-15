@@ -1,6 +1,5 @@
 import json
 import argparse
-import numpy as np
 import nemo_run as run
 import torch
 from nemo import lightning as nl
