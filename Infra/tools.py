@@ -29,8 +29,12 @@ def check_error(results):
 
 def get_os_version():
     results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-    ubuntu = results.stdout.decode('utf-8').strip().split("\t")[1]
-    return "Ubuntu"+ubuntu
+    if results.returncode != 0:
+        return "unknown"
+    parts = results.stdout.decode('utf-8').strip().split("\t")
+    if len(parts) < 2:
+        return "unknown"
+    return "Ubuntu" + parts[1]
 
 def get_hostname():
     results = subprocess.run(["hostname"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -99,6 +103,6 @@ def parse_babelstream_output(raw_output):
     results = []
     for line in raw_output.strip().split("\n"):
         tokens = line.split()
-        if tokens and tokens[0] in BABELSTREAM_OPS:
+        if len(tokens) >= 2 and tokens[0] in BABELSTREAM_OPS:
             results.append([tokens[0], tokens[1]])
     return results
