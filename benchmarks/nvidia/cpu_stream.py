@@ -5,6 +5,7 @@ import os
 import time
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ _BABELSTREAM_COMMIT = "2411a9ac6832eb6562d81c81d016c53a66355eed"
 # ---------------------------------------------------------------------------
 
 
-def _build(work_dir):
+def _build(work_dir: str) -> str:
     """Clone and build BabelStream for OpenMP."""
     repo_dir = os.path.join(work_dir, "CPUStream")
     if not os.path.isdir(repo_dir):
@@ -36,7 +37,9 @@ def _build(work_dir):
     return build_dir
 
 
-def run(work_dir, machine_name, config_path="config.json", ctx=None):
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> dict[str, dict[str, float]] | None:
     """Clone, build, run CPU stream, parse and report results."""
     config = tools.load_benchmark_config(config_path, "CPUStream")
     num_runs = config["inputs"]["num_runs"]

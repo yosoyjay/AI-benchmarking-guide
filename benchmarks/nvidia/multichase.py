@@ -4,6 +4,7 @@ import logging
 import os
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ _MULTICHASE_COMMIT = "a1ffd89b20d033f28fa44d6ee92d7a378b1b1dca"
 # ---------------------------------------------------------------------------
 
 
-def parse_multichase_output(text):
+def parse_multichase_output(text: str) -> tuple[list[str], list[dict[str, str | float]]]:
     """Parse tabular multichase output into node names and row dicts.
 
     Expects a header like ``CPU  NODE0  NODE1 ...`` followed by data rows
@@ -55,7 +56,7 @@ def parse_multichase_output(text):
 # ---------------------------------------------------------------------------
 
 
-def _build(work_dir):
+def _build(work_dir: str) -> None:
     """Clone and build multichase."""
     repo_dir = os.path.join(work_dir, "multichase")
     if not os.path.isdir(repo_dir):
@@ -64,7 +65,9 @@ def _build(work_dir):
         tools.run_cmd(["make"], cwd=repo_dir)
 
 
-def run(work_dir, machine_name, ctx=None):
+def run(
+    work_dir: str, machine_name: str, ctx: RunContext | None = None
+) -> tuple[list[str], list[dict[str, str | float]]] | None:
     """Clone, build, run multichase, and report raw output."""
     _build(work_dir)
 

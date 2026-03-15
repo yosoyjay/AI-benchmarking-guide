@@ -5,6 +5,7 @@ import os
 import time
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ _BABELSTREAM_COMMIT = "1a1a729517df6c44bfbfe6d0db36a24fe8dc6726"
 # ---------------------------------------------------------------------------
 
 
-def _get_cuda_arch(machine_name):
+def _get_cuda_arch(machine_name: str) -> str:
     """Map machine name to CUDA architecture string."""
     if "A100" in machine_name:
         return "sm_80"
@@ -31,7 +32,7 @@ def _get_cuda_arch(machine_name):
 # ---------------------------------------------------------------------------
 
 
-def _build(work_dir, machine_name):
+def _build(work_dir: str, machine_name: str) -> str:
     """Clone and build BabelStream for CUDA."""
     repo_dir = os.path.join(work_dir, "BabelStream")
     if not os.path.isdir(repo_dir):
@@ -57,7 +58,9 @@ def _build(work_dir, machine_name):
     return build_dir
 
 
-def run(work_dir, machine_name, config_path="config.json", ctx=None):
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> dict[str, dict[str, float]] | None:
     """Clone, build, run HBM bandwidth, parse and report results."""
     config = tools.load_benchmark_config(config_path, "HBMBandwidth")
     num_runs = config["inputs"]["num_runs"]

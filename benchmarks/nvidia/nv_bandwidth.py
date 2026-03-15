@@ -6,6 +6,7 @@ import os
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ _LABELS = [
 # ---------------------------------------------------------------------------
 
 
-def parse_sections(text):
+def parse_sections(text: str) -> dict[str, str]:
     """Split nvbandwidth output into {test_name: section_text} dict."""
     sections = {}
     current_name = None
@@ -53,7 +54,7 @@ def parse_sections(text):
     return sections
 
 
-def extract_summary_table(section_text):
+def extract_summary_table(section_text: str) -> list[list[str | float]]:
     """Extract numeric table rows from a single section."""
     table_rows = []
     for line in section_text.strip().splitlines():
@@ -70,7 +71,7 @@ def extract_summary_table(section_text):
     return table_rows
 
 
-def _build_tables(text):
+def _build_tables(text: str) -> list[tuple[str, PrettyTable]]:
     """Parse output and return list of (label, PrettyTable) pairs."""
     sections = parse_sections(text)
     tables = []
@@ -94,7 +95,7 @@ def _build_tables(text):
 # ---------------------------------------------------------------------------
 
 
-def _build(work_dir):
+def _build(work_dir: str) -> None:
     """Clone and build nvbandwidth."""
     repo_dir = os.path.join(work_dir, "nvbandwidth")
     if not os.path.isdir(repo_dir):
@@ -113,7 +114,7 @@ def _build(work_dir):
         tools.run_cmd(["sudo", "./debian_install.sh"], cwd=repo_dir)
 
 
-def run(work_dir, machine_name, ctx=None):
+def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[tuple[str, PrettyTable]] | None:
     """Clone, build, run nvbandwidth, parse and report results."""
     _build(work_dir)
 

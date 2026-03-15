@@ -7,6 +7,7 @@ import subprocess
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ _SUPERBENCHMARK_COMMITS = {
 # ---------------------------------------------------------------------------
 
 
-def parse_cublaslt_line(text):
+def parse_cublaslt_line(text: str) -> dict[str, str] | None:
     """Parse a single whitespace-delimited output line into a dict.
 
     Expects 6 columns: m, n, k, batch_size, time_us, tflops.
@@ -41,7 +42,7 @@ def parse_cublaslt_line(text):
     }
 
 
-def _build_table(rows):
+def _build_table(rows: list[dict[str, str]]) -> PrettyTable:
     """Format parsed row dicts into a PrettyTable."""
     table = PrettyTable(["M", "N", "K", "Batch Size", "Time(us)", "TFLOPS"])
     for r in rows:
@@ -54,7 +55,7 @@ def _build_table(rows):
 # ---------------------------------------------------------------------------
 
 
-def _build(work_dir, datatype):
+def _build(work_dir: str, datatype: str) -> str:
     """Clone superbenchmark repo, checkout correct branch, build binary."""
     repo_dir = os.path.join(work_dir, "superbenchmark")
     if not os.path.isdir(repo_dir):
@@ -83,7 +84,9 @@ def _build(work_dir, datatype):
     return bindir
 
 
-def run(work_dir, machine_name, config_path="config.json", ctx=None):
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> list[dict[str, str]] | None:
     """Clone, build, run CuBLASLt GEMM, parse and report results."""
     config = tools.load_benchmark_config(config_path, "GEMMCublasLt")
     datatype = config["datatype"]

@@ -6,6 +6,7 @@ import os
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ _NCCL_TESTS_COMMIT = "af1dcac92ad7ed81ffa32b593480ab3f0f7baa01"
 # ---------------------------------------------------------------------------
 
 
-def parse_nccl_output(text):
+def parse_nccl_output(text: str) -> list[dict[str, str]]:
     """Extract size and bandwidth from all_reduce_perf 13-column output.
 
     Returns a list of dicts with keys: size, bandwidth.
@@ -33,7 +34,7 @@ def parse_nccl_output(text):
     return rows
 
 
-def _build_table(rows, algo):
+def _build_table(rows: list[dict[str, str]], algo: str) -> PrettyTable:
     """Format parsed rows into a PrettyTable."""
     table = PrettyTable()
     table.add_column("Message Size", [r["size"] for r in rows])
@@ -46,7 +47,7 @@ def _build_table(rows, algo):
 # ---------------------------------------------------------------------------
 
 
-def _get_gpu_count():
+def _get_gpu_count() -> int:
     """Detect number of GPUs via nvidia-smi."""
     result = tools.run_cmd(
         ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
@@ -58,7 +59,7 @@ def _get_gpu_count():
     return len(lines) if lines else 8
 
 
-def _build(work_dir, env):
+def _build(work_dir: str, env: dict[str, str] | None) -> tuple[str, dict[str, str]]:
     """Clone and build NCCL and nccl-tests."""
     nccl_dir = os.path.join(work_dir, "nccl")
     if not os.path.isdir(nccl_dir):
@@ -81,7 +82,7 @@ def _build(work_dir, env):
     return tests_dir, env
 
 
-def run(work_dir, machine_name, ctx=None):
+def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[dict[str, str]] | None:
     """Clone, build, run NCCL all-reduce, parse and report results."""
     tests_dir, env = _build(work_dir, None)
 

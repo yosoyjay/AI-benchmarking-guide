@@ -2,11 +2,13 @@
 
 import logging
 import os
+from typing import Any
 
 from huggingface_hub import snapshot_download
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ _NVIDIA_PYPI_URL = "https://pypi.nvidia.com"
 # ---------------------------------------------------------------------------
 
 
-def parse_trtllm_bench_output(text):
+def parse_trtllm_bench_output(text: str) -> dict[str, str] | None:
     """Extract benchmark metrics from trtllm-bench output text.
 
     Scans for lines containing TP Size, Average Input/Output Length,
@@ -58,7 +60,7 @@ def parse_trtllm_bench_output(text):
     }
 
 
-def _build_table(rows):
+def _build_table(rows: list[dict[str, str]]) -> PrettyTable:
     """Format parsed row dicts into a PrettyTable."""
     table = PrettyTable(["tp size", "input len", "output len", "throughput(tokens/s)"])
     for r in rows:
@@ -71,12 +73,12 @@ def _build_table(rows):
 # ---------------------------------------------------------------------------
 
 
-def _make_env(work_dir):
+def _make_env(work_dir: str) -> dict[str, str]:
     """Build environment dict with HF_HOME set."""
     return {**os.environ, "HF_HOME": work_dir}
 
 
-def _install_requirements(work_dir, env):
+def _install_requirements(work_dir: str, env: dict[str, str]) -> None:
     """Clone TensorRT-LLM and install packages if not in Docker."""
     trt_dir = os.path.join(work_dir, "TensorRT-LLM")
     if not os.path.isdir(trt_dir):
@@ -112,14 +114,14 @@ def _install_requirements(work_dir, env):
             )
 
 
-def _download_models(config, work_dir):
+def _download_models(config: dict[str, Any], work_dir: str) -> None:
     """Download HuggingFace models used by nvidia-typed benchmarks."""
     for model_name, model_cfg in config["models"].items():
         if model_cfg["use_model"] and model_cfg["type"] == "nvidia":
             snapshot_download(repo_id=model_name, cache_dir=os.path.join(work_dir, "hub"))
 
 
-def _prepare_datasets(config, work_dir, env):
+def _prepare_datasets(config: dict[str, Any], work_dir: str, env: dict[str, str]) -> None:
     """Generate synthetic datasets and build TRT-LLM engines."""
     for model_name, model_cfg in config["models"].items():
         if not model_cfg["use_model"] or model_cfg["type"] != "nvidia":
@@ -181,7 +183,9 @@ def _prepare_datasets(config, work_dir, env):
             )
 
 
-def _run_benchmarks(config, work_dir, env, ctx=None):
+def _run_benchmarks(
+    config: dict[str, Any], work_dir: str, env: dict[str, str], ctx: RunContext | None = None
+) -> list[dict[str, str]]:
     """Run trtllm-bench throughput for each model/size combo."""
     all_rows = []
     for model_name, model_cfg in config["models"].items():
@@ -241,7 +245,9 @@ def _run_benchmarks(config, work_dir, env, ctx=None):
     return all_rows
 
 
-def run(work_dir, machine_name, config_path="config.json", ctx=None):
+def run(
+    work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
+) -> list[dict[str, str]] | None:
     """Install deps, download models, prepare datasets, run benchmarks."""
     config = tools.load_benchmark_config(config_path, "LLMBenchmark")
     env = _make_env(work_dir)
