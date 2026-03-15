@@ -22,6 +22,8 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     usage
 fi
 
+# $pip is intentionally unquoted throughout this script so that
+# multi-word values like 'uv pip' undergo word-splitting.
 pip=${1:-'uv pip'}
 
 # Determine GPU platform
@@ -76,7 +78,7 @@ if [[ "$platform" == "AMD" ]]; then
     export FLASH_ATTENTION_TRITON_AMD_ENABLE="TRUE"
     clone_repo "https://github.com/Dao-AILab/flash-attention.git" "flash-attention"
     pushd flash-attention > /dev/null
-    python3 setup.py install
+    $pip install .
     popd > /dev/null
 
 elif [[ "$platform" == "NVIDIA" ]]; then
@@ -97,5 +99,7 @@ if ! command -v fio &> /dev/null; then
     printf "\033[1;33m[Warning] It may need to be installed to run the fio benchmark: sudo apt install fio\033[0m\n"
 fi
 
-# Huggingface home directory is PWD
-export HF_HOME=$PWD
+# Remind user to set HF_HOME (export here would only affect this subprocess)
+echo ""
+echo "To cache Hugging Face models in the current directory, run:"
+echo "  export HF_HOME=\$PWD"
