@@ -129,7 +129,12 @@ class LLAMA3Pretraining:
 
         # launch command and write to log file (this shows all info about epoch, training time, etc.)
         with open("Outputs/llama3_docker_output.txt", "w") as file:
-            subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
+            result = subprocess.run(command, stdout=file, stderr=subprocess.STDOUT, text=True)
+
+        if result.returncode != 0:
+            print(f"Warning: Docker pretraining command failed with exit code {result.returncode}, skipping plot")
+            tools.write_log(f"LLAMA3 pretraining failed with exit code {result.returncode}")
+            return
 
         # now plot the results
         print(f"Pretraining has finished with output saved to: {log_path}. Now plotting.")
