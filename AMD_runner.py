@@ -122,41 +122,76 @@ for arg in sys.argv[1:]:
 
 if ("gemm" in arguments):
     match = True
-    run_GEMMHipBLAS()
+    try:
+        run_GEMMHipBLAS()
+    except Exception as e:
+        print(f"Warning: GEMMHipBLAS benchmark failed: {e}")
+    os.chdir(current)
 
 if ("rccl" in arguments):
     match = True
-    run_RCCLBandwidth()
+    try:
+        run_RCCLBandwidth()
+    except Exception as e:
+        print(f"Warning: RCCLBandwidth benchmark failed: {e}")
+    os.chdir(current)
 
 if ("hbm" in arguments):
     match = True
-    run_HBMBandwidth()
+    try:
+        run_HBMBandwidth()
+    except Exception as e:
+        print(f"Warning: HBMBandwidth benchmark failed: {e}")
+    os.chdir(current)
 
 if ("transfer" in arguments):
     match = True
-    run_TransferBench()
+    try:
+        run_TransferBench()
+    except Exception as e:
+        print(f"Warning: TransferBench benchmark failed: {e}")
+    os.chdir(current)
 
 if ("fa" in arguments):
     match = True
-    run_FlashAttention()
+    try:
+        run_FlashAttention()
+    except Exception as e:
+        print(f"Warning: FlashAttention benchmark failed: {e}")
+    os.chdir(current)
 
 if ("fio" in arguments):
     match = True
-    run_FIO()
+    try:
+        run_FIO()
+    except Exception as e:
+        print(f"Warning: FIO benchmark failed: {e}")
+    os.chdir(current)
 
 if ("llm" in arguments):
     match = True
-    run_LLMBenchmark()
+    try:
+        run_LLMBenchmark()
+    except Exception as e:
+        print(f"Warning: LLMBenchmark failed: {e}")
+    os.chdir(current)
 
 if ("all" in arguments):
     match = True
-    run_HBMBandwidth()
-    run_TransferBench()
-    run_RCCLBandwidth()
-    run_FIO()
-    run_FlashAttention()
-    run_LLMBenchmark()
-    run_GEMMHipBLAS()
+    for _name, _fn in [
+        ("HBMBandwidth", run_HBMBandwidth),
+        ("TransferBench", run_TransferBench),
+        ("RCCLBandwidth", run_RCCLBandwidth),
+        ("FIO", run_FIO),
+        ("FlashAttention", run_FlashAttention),
+        ("LLMBenchmark", run_LLMBenchmark),
+        ("GEMMHipBLAS", run_GEMMHipBLAS),
+    ]:
+        try:
+            _fn()
+        except Exception as e:
+            print(f"Warning: {_name} benchmark failed: {e}")
+        os.chdir(current)
 if not match:
     print("Usage: python3 AMD_runner.py [arg]\n   or: python3 AMD_runner.py [arg1] [arg2] ... to run more than one test e.g python3 AMD_runner.py hbm nccl\nArguments are as follows, and are case insensitive:\nAll tests:  all\nROCBLAS GEMM:  gemm\nRCCL Bandwidth: rccl\nHBMBandwidth:   hbm\nTransferbench:   transfer\nFlash Attention: fa\nFIO Tests:   fio\nLLM Inference Workloads: llm")
     
