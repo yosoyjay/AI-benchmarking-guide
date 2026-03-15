@@ -181,8 +181,9 @@ def _prepare_datasets(config, work_dir, env):
             )
 
 
-def _run_benchmarks(config, work_dir, env):
+def _run_benchmarks(config, work_dir, env, ctx=None):
     """Run trtllm-bench throughput for each model/size combo."""
+    all_rows = []
     for model_name, model_cfg in config["models"].items():
         if not model_cfg["use_model"] or model_cfg["type"] != "nvidia":
             continue
@@ -195,41 +196,52 @@ def _run_benchmarks(config, work_dir, env):
         for isl, osl in zip(model_cfg["input_sizes"], model_cfg["output_sizes"]):
             logger.info("input/output: %s/%s...", isl, osl)
             dataset_path = os.path.join(work_dir, "datasets", f"{name}_synthetic_{isl}_{osl}.txt")
-            results_path = os.path.join(work_dir, "Outputs", f"results_{name}_{isl}_{osl}.txt")
 
-            result = tools.run_cmd(
-                [
-                    "trtllm-bench",
-                    "--model",
-                    model_name,
-                    "throughput",
-                    "--dataset",
-                    dataset_path,
-                    "--engine_dir",
-                    os.path.join(work_dir, "engines", model_name, f"tp_{tp}_pp_1"),
-                ],
-                env=env,
-            )
-            with open(results_path, "w", encoding="utf-8") as f:
-                f.write(result.stdout.decode("utf-8"))
+            cmd = [
+                "trtllm-bench",
+                "--model",
+                model_name,
+                "throughput",
+                "--dataset",
+                dataset_path,
+                "--engine_dir",
+                os.path.join(work_dir, "engines", model_name, f"tp_{tp}_pp_1"),
+            ]
 
-            try:
-                with open(results_path, encoding="utf-8") as f:
-                    text = f.read()
-                parsed = parse_trtllm_bench_output(text)
-                if parsed:
-                    rows.append(parsed)
-                else:
-                    logger.warning("expected 4 values from %s, skipping", results_path)
-            except FileNotFoundError:
-                logger.warning("benchmark output file not found: %s", results_path)
+            if ctx is not None:
+                from infra.capture import capture_cmd
 
-        table = _build_table(rows)
-        print(table)
-        tools.export_markdown(model_name, "Performance results with FP8 quantization, 1000 requests.", table)
+                result = capture_cmd(cmd, ctx=ctx, suffix=f"_{name}_{isl}_{osl}", env=env)
+                text = result.stdout.decode("utf-8")
+            else:
+                result = tools.run_cmd(cmd, env=env)
+                results_path = os.path.join(work_dir, "Outputs", f"results_{name}_{isl}_{osl}.txt")
+                with open(results_path, "w", encoding="utf-8") as f:
+                    f.write(result.stdout.decode("utf-8"))
+                try:
+                    with open(results_path, encoding="utf-8") as f:
+                        text = f.read()
+                except FileNotFoundError:
+                    logger.warning("benchmark output file not found: %s", results_path)
+                    continue
+
+            parsed = parse_trtllm_bench_output(text)
+            if parsed:
+                rows.append(parsed)
+            else:
+                logger.warning("expected 4 values from %s isl=%s osl=%s, skipping", name, isl, osl)
+
+        if ctx is not None:
+            all_rows.extend(rows)
+        else:
+            table = _build_table(rows)
+            print(table)
+            tools.export_markdown(model_name, "Performance results with FP8 quantization, 1000 requests.", table)
+
+    return all_rows
 
 
-def run(work_dir, machine_name, config_path="config.json"):
+def run(work_dir, machine_name, config_path="config.json", ctx=None):
     """Install deps, download models, prepare datasets, run benchmarks."""
     config = tools.load_benchmark_config(config_path, "LLMBenchmark")
     env = _make_env(work_dir)
@@ -241,4 +253,7 @@ def run(work_dir, machine_name, config_path="config.json"):
     _install_requirements(work_dir, env)
     _download_models(config, work_dir)
     _prepare_datasets(config, work_dir, env)
-    _run_benchmarks(config, work_dir, env)
+    rows = _run_benchmarks(config, work_dir, env, ctx=ctx)
+
+    if ctx is not None:
+        return rows

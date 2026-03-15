@@ -113,25 +113,32 @@ def _build(work_dir):
         tools.run_cmd(["sudo", "./debian_install.sh"], cwd=repo_dir)
 
 
-def run(work_dir, machine_name):
+def run(work_dir, machine_name, ctx=None):
     """Clone, build, run nvbandwidth, parse and report results."""
     _build(work_dir)
 
     repo_dir = os.path.join(work_dir, "nvbandwidth")
     logger.info("Running NVBandwidth...")
-    result = tools.run_cmd(
-        [
-            "./nvbandwidth",
-            "-t",
-            "device_to_host_memcpy_ce",
-            "host_to_device_memcpy_ce",
-            "device_to_device_bidirectional_memcpy_read_ce",
-        ],
-        cwd=repo_dir,
-    )
+    cmd = [
+        "./nvbandwidth",
+        "-t",
+        "device_to_host_memcpy_ce",
+        "host_to_device_memcpy_ce",
+        "device_to_device_bidirectional_memcpy_read_ce",
+    ]
+    if ctx is not None:
+        from infra.capture import capture_cmd
+
+        result = capture_cmd(cmd, ctx=ctx, cwd=repo_dir)
+    else:
+        result = tools.run_cmd(cmd, cwd=repo_dir)
     text = result.stdout.decode("utf-8")
 
     tables = _build_tables(text)
+
+    if ctx is not None:
+        return tables
+
     for i, (label, table) in enumerate(tables):
         print(label)
         print(table)

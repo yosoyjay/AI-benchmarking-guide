@@ -64,14 +64,25 @@ def _build(work_dir):
         tools.run_cmd(["make"], cwd=repo_dir)
 
 
-def run(work_dir, machine_name):
+def run(work_dir, machine_name, ctx=None):
     """Clone, build, run multichase, and report raw output."""
     _build(work_dir)
 
     logger.info("Running Multichase...")
     multichase_bin = os.path.join(work_dir, "multichase", "multichase")
     script_path = os.path.join(work_dir, "benchmarks", "nvidia", "run_multichase.sh")
-    result = tools.run_cmd([script_path, multichase_bin])
+    cmd = [script_path, multichase_bin]
+    if ctx is not None:
+        from infra.capture import capture_cmd
+
+        result = capture_cmd(cmd, ctx=ctx)
+    else:
+        result = tools.run_cmd(cmd)
     output = result.stdout.decode("utf-8")
+
+    if ctx is not None:
+        node_names, rows = parse_multichase_output(output)
+        return node_names, rows
+
     print(output)
     tools.export_markdown("Multichase", output, None)

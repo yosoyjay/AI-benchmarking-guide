@@ -66,7 +66,7 @@ _DESCRIPTION = (
 )
 
 
-def run(work_dir: str, machine_name: str) -> list[dict]:
+def run(work_dir: str, machine_name: str, ctx=None) -> list[dict]:
     """Clone repo (if needed), run benchmark, parse and report results."""
     repo_dir = os.path.join(work_dir, "flash-attention")
     if not os.path.isdir(repo_dir):
@@ -75,9 +75,19 @@ def run(work_dir: str, machine_name: str) -> list[dict]:
 
     bench_dir = os.path.join(repo_dir, "benchmarks")
     logger.info("Running Flash Attention with batch size=2, seqlen=8192...")
-    result = tools.run_cmd(["python3", "benchmark_flash_attention.py"], cwd=bench_dir)
+    cmd = ["python3", "benchmark_flash_attention.py"]
+    if ctx is not None:
+        from infra.capture import capture_cmd
+
+        result = capture_cmd(cmd, ctx=ctx, cwd=bench_dir)
+    else:
+        result = tools.run_cmd(cmd, cwd=bench_dir)
 
     rows = parse_flash_attention_output(result.stdout.decode("utf-8"))
+
+    if ctx is not None:
+        return rows
+
     table = _build_table(rows)
     print(table)
     tools.export_markdown("Flash Attention 2", _DESCRIPTION, table)

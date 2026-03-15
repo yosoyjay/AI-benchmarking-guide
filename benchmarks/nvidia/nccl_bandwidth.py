@@ -81,7 +81,7 @@ def _build(work_dir, env):
     return tests_dir, env
 
 
-def run(work_dir, machine_name):
+def run(work_dir, machine_name, ctx=None):
     """Clone, build, run NCCL all-reduce, parse and report results."""
     tests_dir, env = _build(work_dir, None)
 
@@ -91,26 +91,33 @@ def run(work_dir, machine_name):
 
     all_reduce_bin = os.path.join(tests_dir, "build", "all_reduce_perf")
     run_env = {**env, "NCCL_ALGO": algo}
-    result = tools.run_cmd(
-        [
-            all_reduce_bin,
-            "-b",
-            "8",
-            "-e",
-            "8G",
-            "-f",
-            "2",
-            "-g",
-            str(num_gpus),
-            "-n",
-            "40",
-        ],
-        env=run_env,
-    )
+    cmd = [
+        all_reduce_bin,
+        "-b",
+        "8",
+        "-e",
+        "8G",
+        "-f",
+        "2",
+        "-g",
+        str(num_gpus),
+        "-n",
+        "40",
+    ]
+    if ctx is not None:
+        from infra.capture import capture_cmd
+
+        result = capture_cmd(cmd, ctx=ctx, env=run_env)
+    else:
+        result = tools.run_cmd(cmd, env=run_env)
     output = result.stdout.decode("utf-8")
     # Filter to lines containing "float" (same as the old grep)
     float_lines = "\n".join(line for line in output.splitlines() if "float" in line)
     rows = parse_nccl_output(float_lines)
+
+    if ctx is not None:
+        ctx.extra["algorithm"] = algo
+        return rows
 
     table = _build_table(rows, algo)
     print(table)

@@ -57,7 +57,7 @@ def _build(work_dir, machine_name):
     return build_dir
 
 
-def run(work_dir, machine_name, config_path="config.json"):
+def run(work_dir, machine_name, config_path="config.json", ctx=None):
     """Clone, build, run HBM bandwidth, parse and report results."""
     config = tools.load_benchmark_config(config_path, "HBMBandwidth")
     num_runs = config["inputs"]["num_runs"]
@@ -66,12 +66,39 @@ def run(work_dir, machine_name, config_path="config.json"):
     build_dir = _build(work_dir, machine_name)
 
     logger.info("Running HBM Bandwidth...")
+    cmd = ["./cuda-stream"]
     buffer = []
-    for _ in range(num_runs):
-        result = tools.run_cmd(["./cuda-stream"], cwd=build_dir)
+    for i in range(num_runs):
+        if ctx is not None:
+            from infra.capture import capture_cmd
+
+            result = capture_cmd(cmd, ctx=ctx, suffix=f"_run{i}", cwd=build_dir)
+        else:
+            result = tools.run_cmd(cmd, cwd=build_dir)
         log = tools.parse_babelstream_output(result.stdout.decode("utf-8"))
         buffer.append(log)
         time.sleep(int(interval))
+
+    if ctx is not None:
+        import statistics
+
+        ops = {name: [] for name in tools.BABELSTREAM_OPS}
+        for log in buffer:
+            if len(log) < 5:
+                continue
+            for idx, name in enumerate(tools.BABELSTREAM_OPS):
+                ops[name].append(float(log[idx][1]))
+        summary = {}
+        for name in tools.BABELSTREAM_OPS:
+            values = ops[name]
+            if values:
+                summary[name] = {
+                    "min": round(min(values) / 1_000_000, 2),
+                    "max": round(max(values) / 1_000_000, 2),
+                    "mean": round(statistics.mean(values) / 1_000_000, 2),
+                }
+        ctx.extra["units"] = "TB/s"
+        return summary
 
     tools.summarize_babelstream(
         buffer,

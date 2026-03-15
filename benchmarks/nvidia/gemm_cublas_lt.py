@@ -83,7 +83,7 @@ def _build(work_dir, datatype):
     return bindir
 
 
-def run(work_dir, machine_name, config_path="config.json"):
+def run(work_dir, machine_name, config_path="config.json", ctx=None):
     """Clone, build, run CuBLASLt GEMM, parse and report results."""
     config = tools.load_benchmark_config(config_path, "GEMMCublasLt")
     datatype = config["datatype"]
@@ -116,27 +116,29 @@ def run(work_dir, machine_name, config_path="config.json"):
     cublaslt_bin = os.path.join(bindir, "cublaslt_gemm")
     rows = []
     for m, n, k in zip(m_dims, n_dims, k_dims):
-        result = subprocess.run(
-            [
-                cublaslt_bin,
-                "-m",
-                str(m),
-                "-n",
-                str(n),
-                "-k",
-                str(k),
-                "-b",
-                str(b),
-                "-i",
-                str(i),
-                "-w",
-                str(w),
-                "-t",
-                datatype,
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        cmd = [
+            cublaslt_bin,
+            "-m",
+            str(m),
+            "-n",
+            str(n),
+            "-k",
+            str(k),
+            "-b",
+            str(b),
+            "-i",
+            str(i),
+            "-w",
+            str(w),
+            "-t",
+            datatype,
+        ]
+        if ctx is not None:
+            from infra.capture import capture_cmd
+
+            result = capture_cmd(cmd, ctx=ctx, suffix=f"_m{m}_n{n}_k{k}")
+        else:
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode != 0:
             logger.warning(
                 "cublaslt_gemm failed for M=%s N=%s K=%s: returncode=%s",
@@ -156,6 +158,10 @@ def run(work_dir, machine_name, config_path="config.json"):
                 result.stdout.decode("utf-8").strip(),
             )
         tools.write_log(tools.check_error(result))
+
+    if ctx is not None:
+        ctx.extra["datatype"] = datatype
+        return rows
 
     table = _build_table(rows)
     print(table)
