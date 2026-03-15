@@ -86,7 +86,7 @@ _DATATYPE = "FP8"
 _WARMUP = 10000
 
 
-def run(work_dir, machine_name):
+def run(work_dir, machine_name, ctx=None):
     """Run HipBLASLt GEMM inside Docker, parse and report."""
     with AmdContainer(_HIPBLAS_IMAGE, work_dir, entrypoint="/bin/bash") as container:
         logger.info("Running HipBLAS...")
@@ -95,10 +95,22 @@ def run(work_dir, machine_name):
         for m, n, k in zip(_M_DIMS, _N_DIMS, _K_DIMS):
             yaml_cfg = _build_hipblas_yaml(m, n, k)
             cmd = f'{bench_bin} --device 0 --flush --yaml - <<< "{yaml_cfg}"' f' | grep -B 1 "T,N,0"'
-            res = container.exec_run(["/bin/bash", "-c", cmd])
-            output = res.output.decode("utf-8")
-            tools.write_log(output)
+            if ctx is not None:
+                from infra.capture import capture_docker
+
+                stdout, stderr, exit_code = capture_docker(
+                    container, ["/bin/bash", "-c", cmd], ctx=ctx, suffix=f"_m{m}_n{n}_k{k}"
+                )
+                output = stdout
+            else:
+                res = container.exec_run(["/bin/bash", "-c", cmd])
+                output = res.output.decode("utf-8")
+                tools.write_log(output)
             rows.extend(parse_hipblas_results(output))
+
+    if ctx is not None:
+        ctx.extra["datatype"] = _DATATYPE
+        return rows
 
     table = _build_table(rows)
     print(table)

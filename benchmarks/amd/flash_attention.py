@@ -68,7 +68,7 @@ _DESCRIPTION = (
 )
 
 
-def run(work_dir: str, machine_name: str) -> list[dict]:
+def run(work_dir: str, machine_name: str, ctx=None) -> list[dict]:
     """Clone repo, run benchmark inside Docker, parse and report results."""
     repo_dir = os.path.join(work_dir, "flash-attention")
     if not os.path.isdir(repo_dir):
@@ -80,11 +80,21 @@ def run(work_dir: str, machine_name: str) -> list[dict]:
 
     logger.info("Running Flash Attention...")
     with AmdContainer(_FLASH_ATTENTION_IMAGE, work_dir) as container:
-        res = container.exec_run(["python3", bench_script])
-        tools.write_log(res.output.decode("utf-8"))
+        if ctx is not None:
+            from infra.capture import capture_docker
 
-    output_text = res.output.decode("utf-8")
+            stdout, stderr, exit_code = capture_docker(container, ["python3", bench_script], ctx=ctx)
+            output_text = stdout
+        else:
+            res = container.exec_run(["python3", bench_script])
+            tools.write_log(res.output.decode("utf-8"))
+            output_text = res.output.decode("utf-8")
+
     rows = parse_flash_attention_output(output_text)
+
+    if ctx is not None:
+        return rows
+
     table = _build_table(rows)
     print(table)
     tools.export_markdown("Flash Attention 2", _DESCRIPTION, table)

@@ -38,7 +38,7 @@ def _build(work_dir):
         tools.run_cmd(["cmake", "--build", "build"], cwd=repo_dir)
 
 
-def run(work_dir, machine_name, config_path="config.json"):
+def run(work_dir, machine_name, config_path="config.json", ctx=None):
     """Clone, build, run HBM bandwidth, parse and report results."""
     config = tools.load_benchmark_config(config_path, "HBMBandwidth")
     num_runs = config["inputs"]["num_runs"]
@@ -48,12 +48,39 @@ def run(work_dir, machine_name, config_path="config.json"):
 
     logger.info("Running HBM Bandwidth...")
     hip_stream_bin = os.path.join(work_dir, "BabelStream", "build", "hip-stream")
+    cmd = ["sudo", hip_stream_bin]
     buffer = []
-    for _ in range(num_runs):
-        result = tools.run_cmd(["sudo", hip_stream_bin])
+    for i in range(num_runs):
+        if ctx is not None:
+            from infra.capture import capture_cmd
+
+            result = capture_cmd(cmd, ctx=ctx, suffix=f"_run{i}")
+        else:
+            result = tools.run_cmd(cmd)
         log = tools.parse_babelstream_output(result.stdout.decode("utf-8"))
         buffer.append(log)
         time.sleep(int(interval))
+
+    if ctx is not None:
+        import statistics
+
+        ops = {name: [] for name in tools.BABELSTREAM_OPS}
+        for log in buffer:
+            if len(log) < 5:
+                continue
+            for idx, name in enumerate(tools.BABELSTREAM_OPS):
+                ops[name].append(float(log[idx][1]))
+        summary = {}
+        for name in tools.BABELSTREAM_OPS:
+            values = ops[name]
+            if values:
+                summary[name] = {
+                    "min": round(min(values) / 1_000_000, 2),
+                    "max": round(max(values) / 1_000_000, 2),
+                    "mean": round(statistics.mean(values) / 1_000_000, 2),
+                }
+        ctx.extra["units"] = "TB/s"
+        return summary
 
     tools.summarize_babelstream(
         buffer,

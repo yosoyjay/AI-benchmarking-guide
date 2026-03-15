@@ -54,8 +54,9 @@ _DESCRIPTION = (
 )
 
 
-def run(work_dir, machine_name):
+def run(work_dir, machine_name, ctx=None):
     """Run RCCL AllReduce inside Docker, parse and report."""
+    all_parsed = {}
     with AmdContainer(_RCCL_IMAGE, work_dir, entrypoint="/bin/bash") as container:
         logger.info("Running RCCL AllReduce...")
         perf_bin = "/opt/rccl-tests/build/all_reduce_perf"
@@ -64,17 +65,32 @@ def run(work_dir, machine_name):
 
         for algo in _ALGOS:
             cmd = f"NCCL_ALGO={algo} {perf_bin} " f"-b 8 -e 8G -f 2 -g 8 -n 40"
-            res = container.exec_run(
-                ["/bin/sh", "-c", cmd],
-                stderr=True,
-            )
-            if res.exit_code != 0:
-                tools.write_log(res.output.decode("utf-8"))
-                continue
-            rows = parse_rccl_output(res.output.decode("utf-8"))
+            if ctx is not None:
+                from infra.capture import capture_docker
+
+                stdout, stderr, exit_code = capture_docker(
+                    container, ["/bin/sh", "-c", cmd], ctx=ctx, suffix=f"_{algo.lower()}"
+                )
+                if exit_code != 0:
+                    continue
+                rows = parse_rccl_output(stdout)
+            else:
+                res = container.exec_run(
+                    ["/bin/sh", "-c", cmd],
+                    stderr=True,
+                )
+                if res.exit_code != 0:
+                    tools.write_log(res.output.decode("utf-8"))
+                    continue
+                rows = parse_rccl_output(res.output.decode("utf-8"))
             if not sizes:
                 sizes = [r["size"] for r in rows]
             bandwidth_columns.append([r["bandwidth"] for r in rows])
+            if ctx is not None:
+                all_parsed[algo] = rows
+
+    if ctx is not None:
+        return all_parsed
 
     table = _build_table(sizes, bandwidth_columns, _ALGOS)
     print(table)

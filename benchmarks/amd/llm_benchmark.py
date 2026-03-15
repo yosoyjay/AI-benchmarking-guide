@@ -45,7 +45,7 @@ def _build_table(rows):
 # ---------------------------------------------------------------------------
 
 
-def run(work_dir, machine_name, config_path="config.json"):
+def run(work_dir, machine_name, config_path="config.json", ctx=None):
     """Run vLLM throughput benchmarks inside Docker, parse and report."""
     config = tools.load_benchmark_config(config_path, "LLMBenchmark")
 
@@ -55,6 +55,7 @@ def run(work_dir, machine_name, config_path="config.json"):
         entrypoint="/bin/bash",
         environment={"HF_HOME": work_dir},
     ) as container:
+        all_rows = []
         for model_name, model_cfg in config["models"].items():
             if not model_cfg["use_model"] or model_cfg["type"] != "amd":
                 continue
@@ -88,13 +89,32 @@ def run(work_dir, machine_name, config_path="config.json"):
                                 f"--input-len {input_size} "
                                 f"--output-len {output_size}"
                             )
-                            res = container.exec_run(["/bin/bash", "-c", cmd])
-                            output = res.output.decode("utf-8")
-                            tools.write_log(output)
+                            if ctx is not None:
+                                from infra.capture import capture_docker
+
+                                name = model_name.replace("/", "_")
+                                stdout, stderr, exit_code = capture_docker(
+                                    container,
+                                    ["/bin/bash", "-c", cmd],
+                                    ctx=ctx,
+                                    suffix=f"_{name}_{input_size}_{output_size}",
+                                )
+                                output = stdout
+                            else:
+                                res = container.exec_run(["/bin/bash", "-c", cmd])
+                                output = res.output.decode("utf-8")
+                                tools.write_log(output)
                             throughput = parse_vllm_throughput_output(output)
                             result = throughput if throughput is not None else "unknown"
                             rows.append((str(input_size), str(output_size), str(tp_size), str(result)))
 
-            table = _build_table(rows)
-            print(table)
-            tools.export_markdown(model_name, "Performance results with FP8 quantization.", table)
+            if ctx is not None:
+                ctx.extra["model"] = model_name
+                all_rows.extend(rows)
+            else:
+                table = _build_table(rows)
+                print(table)
+                tools.export_markdown(model_name, "Performance results with FP8 quantization.", table)
+
+    if ctx is not None:
+        return all_rows
