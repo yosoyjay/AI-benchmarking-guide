@@ -87,9 +87,7 @@ def run_HBMBandwidth(sku_name):
     if "GB200" in sku_name:
         logger.warning("HBM bandwidth Test not supported on GB200 yet")
         return
-    test = HBM.HBMBandwidth("config.json", sku_name)
-    test.build()
-    test.run()
+    HBM.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_NVBandwidth(sku_name):
@@ -109,9 +107,7 @@ def run_Multichase(sku_name):
 
 
 def run_CPUStream(sku_name):
-    test = CPU.CPUStream("config.json", sku_name)
-    test.build()
-    test.run()
+    CPU.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_FIO(sku_name):

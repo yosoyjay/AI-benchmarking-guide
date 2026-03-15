@@ -1,82 +1,80 @@
+"""HBM Bandwidth benchmark (NVIDIA, BabelStream-based)."""
+
 import logging
 import os
 import time
+
 from infra import tools
 
 logger = logging.getLogger(__name__)
 
 _BABELSTREAM_REPO = "https://github.com/gitaumark/BabelStream"
 
-class HBMBandwidth:
-    def __init__(self, path: str, machine: str):
-        self.name = "HBMBandwidth"
-        self.machine_name = machine
-        config = tools.load_benchmark_config(path, self.name)
-        self.num_runs, self.interval = self.config_conversion(config)
-        self.buffer = []
 
-    def config_conversion(self, config) -> tuple[int, int]:
-        return config["inputs"]["num_runs"], config["inputs"]["interval"]
+# ---------------------------------------------------------------------------
+# Pure helpers -- no side effects, fully testable
+# ---------------------------------------------------------------------------
 
-    def build(self):
-        current = os.getcwd()
-        path = "BabelStream"
-        isdir = os.path.isdir(path)
-        if not isdir:
-            results = tools.run_cmd(
-                ["git", "clone", _BABELSTREAM_REPO,  path],
-            )
 
-        build_path = os.path.join(current, "BabelStream")
-        babelstream_build_path = os.path.join(build_path, "build")
+def _get_cuda_arch(machine_name):
+    """Map machine name to CUDA architecture string."""
+    if "A100" in machine_name:
+        return "sm_80"
+    if "GB200" in machine_name:
+        return "sm_100"
+    return "sm_90"
 
-        arch ="sm_90"
-        if "A100" in self.machine_name:
-            arch = "sm_80"
-        if "GB200" in self.machine_name:
-            arch = "sm_100"
 
-        if not os.path.isdir(babelstream_build_path):
-            os.mkdir(babelstream_build_path)
-            results = tools.run_cmd(
-                [
-                    "cmake",
-                    "../",
-                    "-DMODEL=cuda",
-                    f"-DCUDA_ARCH={arch}",
-                    "-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
-                ],
-                cwd=babelstream_build_path,
-            )
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
 
-            results = tools.run_cmd(
-                ["make"],
-                cwd=babelstream_build_path,
-            )
 
-        self.build_dir = babelstream_build_path
+def _build(work_dir, machine_name):
+    """Clone and build BabelStream for CUDA."""
+    repo_dir = os.path.join(work_dir, "BabelStream")
+    if not os.path.isdir(repo_dir):
+        tools.run_cmd(["git", "clone", _BABELSTREAM_REPO, "BabelStream"], cwd=work_dir)
 
-    def run(self):
-        logger.info("Running HBM Bandwidth...")
-        runs_executed = 0
-        buffer = []
-        while runs_executed < self.num_runs:
-            results = tools.run_cmd(
-                ["./cuda-stream"],
-                cwd=self.build_dir,
-            )
-            log = tools.parse_babelstream_output(results.stdout.decode("utf-8"))
-            buffer.append(log)
-            runs_executed += 1
-            time.sleep(int(self.interval))
-        self.buffer = buffer
-        self.save_results()
-
-    def save_results(self):
-        tools.summarize_babelstream(
-            self.buffer,
-            divisor=1_000_000,
-            units="TB/s",
-            title="HBM Bandwidth",
-            description="HBM bandwidth Results",
+    build_dir = os.path.join(repo_dir, "build")
+    if not os.path.isdir(build_dir):
+        os.mkdir(build_dir)
+        arch = _get_cuda_arch(machine_name)
+        tools.run_cmd(
+            [
+                "cmake",
+                "../",
+                "-DMODEL=cuda",
+                f"-DCUDA_ARCH={arch}",
+                "-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            ],
+            cwd=build_dir,
         )
+        tools.run_cmd(["make"], cwd=build_dir)
+
+    return build_dir
+
+
+def run(work_dir, machine_name, config_path="config.json"):
+    """Clone, build, run HBM bandwidth, parse and report results."""
+    config = tools.load_benchmark_config(config_path, "HBMBandwidth")
+    num_runs = config["inputs"]["num_runs"]
+    interval = config["inputs"]["interval"]
+
+    build_dir = _build(work_dir, machine_name)
+
+    logger.info("Running HBM Bandwidth...")
+    buffer = []
+    for _ in range(num_runs):
+        result = tools.run_cmd(["./cuda-stream"], cwd=build_dir)
+        log = tools.parse_babelstream_output(result.stdout.decode("utf-8"))
+        buffer.append(log)
+        time.sleep(int(interval))
+
+    tools.summarize_babelstream(
+        buffer,
+        divisor=1_000_000,
+        units="TB/s",
+        title="HBM Bandwidth",
+        description="HBM bandwidth Results",
+    )
