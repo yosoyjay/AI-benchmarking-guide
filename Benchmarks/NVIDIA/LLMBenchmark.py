@@ -133,12 +133,24 @@ class LLMBenchmark:
             "Token Throughput (tokens/sec):"
         ]
 
-        with open(file_path, 'r', encoding='utf-8') as file:
-            row = []
-            for line in file:
-                for keyword in keywords:
-                    if keyword in line:
-                        row.append(str(int(float(line.split(":")[1].strip()))))
-                        break
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                row = []
+                for line in file:
+                    for keyword in keywords:
+                        if keyword in line:
+                            try:
+                                parts = line.split(":")
+                                if len(parts) < 2:
+                                    continue
+                                row.append(str(int(float(parts[1].strip()))))
+                            except (ValueError, IndexError):
+                                print(f"Warning: could not parse value from line: {line.strip()}")
+                            break
 
-            self.table.add_row(row)
+                if len(row) == 4:
+                    self.table.add_row(row)
+                else:
+                    print(f"Warning: expected 4 values from {file_path}, got {len(row)}, skipping")
+        except FileNotFoundError:
+            print(f"Warning: benchmark output file not found: {file_path}")
