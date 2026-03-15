@@ -27,16 +27,16 @@ class HBMBandwidth:
         path = "BabelStream"
         isdir = os.path.isdir(path)
         if not isdir:
-            clone_cmd = "git clone " + _BABELSTREAM_REPO + " " + self.dir_path + "/BabelStream"
+            clone_cmd = f"git clone {_BABELSTREAM_REPO} {self.dir_path}/BabelStream"
             results = tools.run_cmd(clone_cmd, shell=True)
-            results = tools.run_cmd('cd ' + self.dir_path + '/BabelStream && cmake -Bbuild -H. -DMODEL=hip -DRELEASE_FLAGS="-O3" -DCMAKE_CXX_COMPILER=hipcc && cmake --build build', shell=True)
+            results = tools.run_cmd(f'cd {self.dir_path}/BabelStream && cmake -Bbuild -H. -DMODEL=hip -DRELEASE_FLAGS="-O3" -DCMAKE_CXX_COMPILER=hipcc && cmake --build build', shell=True)
 
     def run(self):
         logger.info("Running HBM Bandwidth...")
         runs_executed = 0
         buffer = []
         while runs_executed < self.num_runs:
-            run_cmd = 'sudo "' + self.dir_path + '/BabelStream/build/hip-stream"'
+            run_cmd = f'sudo "{self.dir_path}/BabelStream/build/hip-stream"'
             results = tools.run_cmd(run_cmd, shell=True)
             log = tools.parse_babelstream_output(results.stdout.decode("utf-8"))
             buffer.append(log)

@@ -46,7 +46,7 @@ class GEMMHipBLAS:
         path = "hipBLASLt"
         isdir = os.path.isdir(path)
         if not isdir:
-            clone_cmd = "git clone " + _HIPBLASLT_REPO + " " + self.dir_path + "/hipBLASLt"
+            clone_cmd = f"git clone {_HIPBLASLT_REPO} {self.dir_path}/hipBLASLt"
             results = self.container.exec_run(clone_cmd, stderr=True)
             results = self.container.exec_run(f'/bin/sh -c "cd {self.dir_path}/hipBLASLt && git checkout {_HIPBLASLT_COMMIT}"', stderr=True)
             if results.exit_code != 0:
@@ -70,12 +70,12 @@ class GEMMHipBLAS:
 
         try:
             for i in range(len(m_dims)):
-                hipblas_cmd = 'cd ' + self.dir_path + '/Benchmarks/AMD && ./hipBLAS_runner.sh ' + str(m_dims[i]) + ' ' +  str(n_dims[i]) + ' ' + str(k_dims[i])
-                results = self.container.exec_run(f'/bin/sh -c ' + '"' + hipblas_cmd + '"')
+                hipblas_cmd = f'cd {self.dir_path}/Benchmarks/AMD && ./hipBLAS_runner.sh {m_dims[i]} {n_dims[i]} {k_dims[i]}'
+                results = self.container.exec_run(f'/bin/sh -c "{hipblas_cmd}"')
                 tools.write_log(results.output.decode('utf-8'))
 
             try:
-                with open(self.dir_path + '/Outputs/GEMMHipBLAS_results.txt', 'r') as resFile:
+                with open(f'{self.dir_path}/Outputs/GEMMHipBLAS_results.txt', 'r') as resFile:
                     table1 = PrettyTable()
                     table1.field_names = ["M","N","K","TFLOPS"]
                     for line in resFile:
@@ -100,7 +100,7 @@ class GEMMHipBLAS:
                 table1.field_names = ["M","N","K","TFLOPS"]
 
             print(table1)
-            tools.export_markdown("GEMM HipBLASLt", "The results shown below are with random initialization (best representation of real-life workloads) " + self.datatype +  ", and " + str(self.w) + " warmup iterations.", table1)
+            tools.export_markdown("GEMM HipBLASLt", f"The results shown below are with random initialization (best representation of real-life workloads) {self.datatype}, and {self.w} warmup iterations.", table1)
             results = self.container.exec_run(f'/bin/sh -c "rm {self.dir_path}/Outputs/GEMMHipBLAS_results.txt"', stderr=True)
         finally:
             self.container.kill()

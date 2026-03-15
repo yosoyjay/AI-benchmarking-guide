@@ -45,7 +45,7 @@ class RCCLBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building RCCL Library...")
-            clone_cmd = "git clone " + _RCCL_REPO + " " + self.dir_path + "/rccl"
+            clone_cmd = f"git clone {_RCCL_REPO} {self.dir_path}/rccl"
             results = self.container.exec_run(clone_cmd, stderr=True)
             if results.exit_code != 0:
                 tools.write_log(results.output.decode('utf-8'))
@@ -58,7 +58,7 @@ class RCCLBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building RCCL Tests...")
-            clone_cmd = "git clone " + _RCCL_TESTS_REPO + " " + self.dir_path + "/rccl-tests"
+            clone_cmd = f"git clone {_RCCL_TESTS_REPO} {self.dir_path}/rccl-tests"
             results = self.container.exec_run(clone_cmd, stderr=True)
             if results.exit_code != 0:
                 tools.write_log(results.output.decode('utf-8'))
@@ -74,8 +74,8 @@ class RCCLBandwidth:
         logger.info("Running RCCL AllReduce...")
         try:
             for run in runs:
-                run_cmd = "NCCL_ALGO=" + run + " " + self.dir_path +"/rccl-tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 8 -n 40 | grep float"
-                run_cmd = '/bin/sh -c "' + run_cmd + '"'
+                run_cmd = f"NCCL_ALGO={run} {self.dir_path}/rccl-tests/build/all_reduce_perf -b 8 -e 8G -f 2 -g 8 -n 40 | grep float"
+                run_cmd = f'/bin/sh -c "{run_cmd}"'
                 results = self.container.exec_run(run_cmd, stderr=True)
                 if results.exit_code != 0:
                     tools.write_log(results.output.decode('utf-8'))

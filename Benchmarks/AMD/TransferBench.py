@@ -18,15 +18,15 @@ class TransferBench:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building TransferBench...")
-            clone_cmd = 'git clone ' + _TRANSFERBENCH_REPO + ' "' + self.dir_path + '/TransferBench"'
+            clone_cmd = f'git clone {_TRANSFERBENCH_REPO} "{self.dir_path}/TransferBench"'
             results = tools.run_cmd(clone_cmd, shell=True)
-            results = tools.run_cmd('mkdir -p "' + self.dir_path + '/TransferBench/build"', shell=True)
+            results = tools.run_cmd(f'mkdir -p "{self.dir_path}/TransferBench/build"', shell=True)
 
-            results = tools.run_cmd('cd "' + self.dir_path + '/TransferBench/build" && CXX=/opt/rocm/bin/hipcc cmake .. && make', shell=True)
+            results = tools.run_cmd(f'cd "{self.dir_path}/TransferBench/build" && CXX=/opt/rocm/bin/hipcc cmake .. && make', shell=True)
 
     def run(self):
         logger.info("Running TransferBench...")
-        run_cmd = 'sudo "' + self.dir_path + '/TransferBench/build/TransferBench" "' + self.dir_path + '/Benchmarks/AMD/transferbench.cfg" | grep -v \'=\' | grep \'sum\''
+        run_cmd = f'sudo "{self.dir_path}/TransferBench/build/TransferBench" "{self.dir_path}/Benchmarks/AMD/transferbench.cfg" | grep -v \'=\' | grep \'sum\''
         results = tools.run_cmd(run_cmd, shell=True)
         table = PrettyTable(["Test", "Result"])
         if results.returncode != 0:

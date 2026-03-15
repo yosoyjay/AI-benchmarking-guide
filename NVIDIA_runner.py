@@ -30,7 +30,7 @@ def get_system_specs(current, host_name):
         logger.error("nvidia-smi returned no GPU data")
         sys.exit(1)
     output = lines[1].split(",")
-    if not os.path.exists(current +  "/Outputs/" + host_name + "_summary.md"):
+    if not os.path.exists(f"{current}/Outputs/{host_name}_summary.md"):
         table = PrettyTable([" ", output[0]])
         if len(output) > 1:
             table.add_row(["VBIOS", output[1]])
@@ -64,7 +64,7 @@ def get_system_specs(current, host_name):
                 pyt = "unknown"
             table.add_row(["pytorch", pyt])
         print(table)
-        tools.export_markdown(output[0].strip() + " Benchmarking Guide", "", table)
+        tools.export_markdown(f"{output[0].strip()} Benchmarking Guide", "", table)
     return output[0].strip()
 
 

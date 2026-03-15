@@ -29,8 +29,8 @@ class NCCLBandwidth:
             results = tools.run_cmd('make -j src.build', shell=True)
             os.chdir(current)
 
-        nccl_home = current + '/nccl/build'
-        ld_path = current + '/nccl/build/lib:' + os.environ.get('LD_LIBRARY_PATH', '')
+        nccl_home = f"{current}/nccl/build"
+        ld_path = f"{current}/nccl/build/lib:{os.environ.get('LD_LIBRARY_PATH', '')}"
         self.env = {**os.environ, 'NCCL_HOME': nccl_home, 'LD_LIBRARY_PATH': ld_path}
 
         path ='nccl-tests'
@@ -55,9 +55,9 @@ class NCCLBandwidth:
             num_gpus = num_gpus_result.stdout.decode('utf-8').strip()
         if num_gpus == '4':
             self.algo = "Ring"
-        logger.info("Running NCCL AllReduce on " + num_gpus + " GPUs")
+        logger.info("Running NCCL AllReduce on %s GPUs", num_gpus)
 
-        results = tools.run_cmd('NCCL_ALGO='+ self.algo +' ./build/all_reduce_perf -b 8 -e 8G -f 2 -g ' + num_gpus + ' -n 40 | grep float', shell=True, env=self.env)
+        results = tools.run_cmd(f'NCCL_ALGO={self.algo} ./build/all_reduce_perf -b 8 -e 8G -f 2 -g {num_gpus} -n 40 | grep float', shell=True, env=self.env)
         res = results.stdout.decode('utf-8').split('\n')
         sizes = []
         log = []
@@ -68,7 +68,7 @@ class NCCLBandwidth:
                 log.append(fields[11])
 
         table1 = PrettyTable()
-        runs = ["Message Size", "Bandwidth (" + self.algo + ")"]
+        runs = ["Message Size", f"Bandwidth ({self.algo})"]
         table1.add_column(runs[0], sizes)
         table1.add_column(runs[1], log)
         print(table1)

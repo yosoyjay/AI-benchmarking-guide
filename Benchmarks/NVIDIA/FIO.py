@@ -28,7 +28,7 @@ class FIO:
         table = PrettyTable(["Test", "Batch Size(Bytes)", "Bandwidth"])
         for test in tests:
             results = subprocess.run(
-                "fio --bs=" + test[1] +  " --ioengine=libaio --iodepth=255 --directory=" + shlex.quote(current + "/Outputs") + " --direct=1 --runtime=300 --numjobs=4 --rw=" +test[0]+ " --name=test --group_reporting --gtod_reduce=1 --size=10G | grep -A 1 ': bw='",
+                f"fio --bs={test[1]} --ioengine=libaio --iodepth=255 --directory={shlex.quote(f'{current}/Outputs')} --direct=1 --runtime=300 --numjobs=4 --rw={test[0]} --name=test --group_reporting --gtod_reduce=1 --size=10G | grep -A 1 ': bw='",
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -44,7 +44,7 @@ class FIO:
         tools.export_markdown("FIO Tests", "", table)
            
         results = subprocess.run(
-            "rm " + shlex.quote(current + "/Outputs") + "/test*",
+            f"rm {shlex.quote(f'{current}/Outputs')}/test*",
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

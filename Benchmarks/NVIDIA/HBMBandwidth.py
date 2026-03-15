@@ -48,7 +48,7 @@ class HBMBandwidth:
                     "cmake",
                     "../",
                     "-DMODEL=cuda",
-                    "-DCUDA_ARCH=" + arch,
+                    f"-DCUDA_ARCH={arch}",
                     "-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
                 ],
             )

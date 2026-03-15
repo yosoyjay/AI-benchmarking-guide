@@ -48,7 +48,7 @@ def get_system_specs():
             rocm_version = parts[3] if len(parts) >= 4 else "unknown"
         else:
             rocm_version = "unknown"
-        file.write("ROCm version     : "+rocm_version+"\n")
+        file.write(f"ROCm version     : {rocm_version}\n")
 
         results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if results.returncode == 0:
@@ -56,7 +56,7 @@ def get_system_specs():
             ubuntu = parts[1] if len(parts) >= 2 else "unknown"
         else:
             ubuntu = "unknown"
-        file.write("ubuntu version   : "+ubuntu+"\n")
+        file.write(f"ubuntu version   : {ubuntu}\n")
 
         results = subprocess.run("grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep microcode", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if results.returncode == 0:
@@ -64,12 +64,12 @@ def get_system_specs():
             microcode = lines[0] if lines else ""
         else:
             microcode = ""
-        file.write(microcode+"\n")
+        file.write(f"{microcode}\n")
 
         results = subprocess.run("grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep name", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if results.returncode == 0:
             lines = results.stdout.decode('utf-8').split("\n")
-            file.write((lines[0] if lines else "")+"\n")
+            file.write(f"{lines[0] if lines else ''}\n")
         else:
             file.write("\n")
 

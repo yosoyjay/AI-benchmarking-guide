@@ -71,7 +71,7 @@ class GEMMCublastLt:
 
     # run GEMM with predetermined matrix sizes that are commonly used in transformers
     def run_model_sizes(self):
-        logger.info("Running CublasLt with datatype " + self.datatype + "...")
+        logger.info("Running CublasLt with datatype %s...", self.datatype)
         current = os.getcwd()
         if self.datatype == "fp8e4m3":
             m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
@@ -124,5 +124,5 @@ class GEMMCublastLt:
             else:
                 logger.warning("Skipping cublaslt_gemm result with %d columns (expected 6): %s", len(item), item)
         print(table1)
-        tools.export_markdown("GEMM CuBLASLt", "The results shown below are with random initialization (best representation of real-life workloads) " + self.datatype +  ", and " + str(self.w) + " warmup iterations.", table1)
+        tools.export_markdown("GEMM CuBLASLt", f"The results shown below are with random initialization (best representation of real-life workloads) {self.datatype}, and {self.w} warmup iterations.", table1)
         os.chdir(current)
