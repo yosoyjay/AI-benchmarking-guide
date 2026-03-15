@@ -1,4 +1,3 @@
-import json
 import subprocess
 import os
 from Infra import tools
@@ -26,9 +25,12 @@ class NVBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nvbandwidth', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        build_path = os.path.join(current, 'nvbandwidth')
-        os.chdir(build_path)
-        results = subprocess.run(['sed', '-i', r'2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)', 'CMakeLists.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            build_path = os.path.join(current, 'nvbandwidth')
+            os.chdir(build_path)
+            results = subprocess.run(['sed', '-i', r'2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)', 'CMakeLists.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        else:
+            build_path = os.path.join(current, 'nvbandwidth')
+            os.chdir(build_path)
 
         if os.path.exists("/.dockerenv"):
             results = subprocess.run('apt update && ./debian_install.sh', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -92,12 +94,14 @@ class NVBandwidth:
     def format_output(self, text):
         sections = self._parse_sections(text)
         results = []
-        for name in self.TEST_NAMES:
+        result_labels = []
+        for name, label in zip(self.TEST_NAMES, self.LABELS):
             if name not in sections:
                 print(f"Warning: section '{name}' not found in nvbandwidth output")
                 continue
             table = self._extract_summary_table(sections[name])
             results.append(table)
+            result_labels.append(label)
 
         for i, table in enumerate(results):
             if not table:
@@ -106,10 +110,10 @@ class NVBandwidth:
             t = PrettyTable(table[0])
             for j in range(1, len(table)):
                 t.add_row(table[j])
-            print(self.LABELS[i])
+            print(result_labels[i])
             print(t)
 
             if i == 0:
-                tools.export_markdown("NV Bandwidth", self.LABELS[i], t)
+                tools.export_markdown("NV Bandwidth", result_labels[i], t)
             else:
-                tools.export_markdown(None, self.LABELS[i], t)
+                tools.export_markdown(None, result_labels[i], t)
