@@ -1,5 +1,11 @@
-import pytest
-from benchmarks.nvidia.nv_bandwidth import NVBandwidth
+"""Tests for NV Bandwidth benchmark helpers."""
+
+from benchmarks.nvidia.nv_bandwidth import (
+    TEST_NAMES,
+    _build_tables,
+    extract_summary_table,
+    parse_sections,
+)
 
 SAMPLE_OUTPUT = """\
 nvbandwidth Version: 0.5
@@ -44,65 +50,50 @@ SUM device_to_device_bidirectional_memcpy_read_ce 534.3
 
 class TestParseSections:
     def test_finds_all_three_sections(self):
-        sections = NVBandwidth._parse_sections(SAMPLE_OUTPUT)
+        sections = parse_sections(SAMPLE_OUTPUT)
         assert len(sections) == 3
-        for name in NVBandwidth.TEST_NAMES:
+        for name in TEST_NAMES:
             assert name in sections
 
     def test_section_content_excludes_test_name(self):
-        sections = NVBandwidth._parse_sections(SAMPLE_OUTPUT)
-        for name in NVBandwidth.TEST_NAMES:
-            # The test name itself should not appear as a line in the section content
+        sections = parse_sections(SAMPLE_OUTPUT)
+        for name in TEST_NAMES:
             for line in sections[name].splitlines():
                 assert line.strip() != name
 
     def test_empty_input_returns_empty(self):
-        sections = NVBandwidth._parse_sections("")
+        sections = parse_sections("")
         assert sections == {}
 
 
 class TestExtractSummaryTable:
     def test_returns_first_table(self):
-        sections = NVBandwidth._parse_sections(SAMPLE_OUTPUT)
-        table = NVBandwidth._extract_summary_table(sections["device_to_host_memcpy_ce"])
+        sections = parse_sections(SAMPLE_OUTPUT)
+        table = extract_summary_table(sections["device_to_host_memcpy_ce"])
         # Header row + 4 GPU rows
         assert len(table) == 5
         assert table[0] == [0.0, 1.0, 2.0, 3.0]
 
     def test_numeric_cells_are_floats(self):
-        sections = NVBandwidth._parse_sections(SAMPLE_OUTPUT)
-        table = NVBandwidth._extract_summary_table(sections["device_to_host_memcpy_ce"])
-        # All cells should be floats (header and data are all numeric)
+        sections = parse_sections(SAMPLE_OUTPUT)
+        table = extract_summary_table(sections["device_to_host_memcpy_ce"])
         for row in table:
             for cell in row:
                 assert isinstance(cell, float)
 
 
-class TestFormatOutput:
-    def test_smoke(self, capsys):
-        nv = NVBandwidth.__new__(NVBandwidth)
-        nv.name = "NVBandwidth"
-        nv.machine_name = "test"
-        import infra.tools as tools_mod
-        orig = tools_mod.export_markdown
-        tools_mod.export_markdown = lambda *a, **kw: None
-        try:
-            nv.format_output(SAMPLE_OUTPUT)
-        finally:
-            tools_mod.export_markdown = orig
-        captured = capsys.readouterr()
-        assert "Device to Host" in captured.out
+class TestBuildTables:
+    def test_smoke(self):
+        tables = _build_tables(SAMPLE_OUTPUT)
+        assert len(tables) == 3
+        assert "Device to Host" in tables[0][0]
 
     def test_missing_section_logs_warning(self, caplog):
-        nv = NVBandwidth.__new__(NVBandwidth)
-        nv.name = "NVBandwidth"
-        nv.machine_name = "test"
-        import infra.tools as tools_mod
-        orig = tools_mod.export_markdown
-        tools_mod.export_markdown = lambda *a, **kw: None
-        try:
-            with caplog.at_level("WARNING"):
-                nv.format_output("some unrelated text\nwith no test names\n")
-        finally:
-            tools_mod.export_markdown = orig
+        with caplog.at_level("WARNING"):
+            tables = _build_tables("some unrelated text\nwith no test names\n")
         assert "not found in nvbandwidth output" in caplog.text
+        assert tables == []
+
+    def test_empty_input(self):
+        tables = _build_tables("")
+        assert tables == []

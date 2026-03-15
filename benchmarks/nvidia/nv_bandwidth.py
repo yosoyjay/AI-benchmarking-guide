@@ -1,114 +1,139 @@
+"""NV Bandwidth benchmark (NVIDIA)."""
+
 import logging
-import subprocess
 import os
-from infra import tools
+
 from prettytable import PrettyTable
+
+from infra import tools
 
 logger = logging.getLogger(__name__)
 
 _NVBANDWIDTH_REPO = "https://github.com/NVIDIA/nvbandwidth"
 
-class NVBandwidth:
-    TEST_NAMES = [
-        "device_to_host_memcpy_ce",
-        "host_to_device_memcpy_ce",
-        "device_to_device_bidirectional_memcpy_read_ce",
-    ]
-    LABELS = [
-        "Device to Host memcpy",
-        "Host to Device memcpy",
-        "Device to Device Bidirectional memcpy Total",
-    ]
+TEST_NAMES = [
+    "device_to_host_memcpy_ce",
+    "host_to_device_memcpy_ce",
+    "device_to_device_bidirectional_memcpy_read_ce",
+]
+_LABELS = [
+    "Device to Host memcpy",
+    "Host to Device memcpy",
+    "Device to Device Bidirectional memcpy Total",
+]
 
-    def __init__(self, path:str, machine: str):
-        self.name='NVBandwidth'
-        self.machine_name = machine
 
-    def build(self):
-        current = os.getcwd()
-        path ='nvbandwidth'
-        isdir = os.path.isdir(path)
-        build_path = os.path.join(current, 'nvbandwidth')
-        if not isdir:
-            results = subprocess.run(['git', 'clone', _NVBANDWIDTH_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            results = subprocess.run(['sed', '-i', r'2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)', 'CMakeLists.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=build_path)
+# ---------------------------------------------------------------------------
+# Pure helpers -- no side effects, fully testable
+# ---------------------------------------------------------------------------
 
-        if os.path.exists("/.dockerenv"):
-            results = tools.run_cmd('apt update && ./debian_install.sh', shell=True, cwd=build_path)
+
+def parse_sections(text):
+    """Split nvbandwidth output into {test_name: section_text} dict."""
+    sections = {}
+    current_name = None
+    current_lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        found = None
+        for name in TEST_NAMES:
+            if stripped == name:
+                found = name
+                break
+        if found:
+            if current_name is not None:
+                sections[current_name] = "\n".join(current_lines)
+            current_name = found
+            current_lines = []
+        elif current_name is not None:
+            current_lines.append(line)
+    if current_name is not None:
+        sections[current_name] = "\n".join(current_lines)
+    return sections
+
+
+def extract_summary_table(section_text):
+    """Extract numeric table rows from a single section."""
+    table_rows = []
+    for line in section_text.strip().splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if table_rows:
+                break
+            continue
+        if "memcpy" in stripped or stripped.startswith("running") or stripped.startswith("SUM"):
+            continue
+        tokens = stripped.split()
+        row = [round(float(x), 1) if x.replace(".", "", 1).isdigit() else x for x in tokens]
+        table_rows.append(row)
+    return table_rows
+
+
+def _build_tables(text):
+    """Parse output and return list of (label, PrettyTable) pairs."""
+    sections = parse_sections(text)
+    tables = []
+    for name, label in zip(TEST_NAMES, _LABELS):
+        if name not in sections:
+            logger.warning("section '%s' not found in nvbandwidth output", name)
+            continue
+        raw = extract_summary_table(sections[name])
+        if not raw:
+            continue
+        raw[0].insert(0, " ")
+        t = PrettyTable(raw[0])
+        for row in raw[1:]:
+            t.add_row(row)
+        tables.append((label, t))
+    return tables
+
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+
+def _build(work_dir):
+    """Clone and build nvbandwidth."""
+    repo_dir = os.path.join(work_dir, "nvbandwidth")
+    if not os.path.isdir(repo_dir):
+        tools.run_cmd(["git", "clone", _NVBANDWIDTH_REPO, "nvbandwidth"], cwd=work_dir)
+        tools.run_cmd(
+            ["sed", "-i", r"2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)", "CMakeLists.txt"],
+            cwd=repo_dir,
+        )
+
+    if os.path.exists("/.dockerenv"):
+        tools.run_cmd(["apt", "update"], cwd=repo_dir)
+        tools.run_cmd(["./debian_install.sh"], cwd=repo_dir)
+    else:
+        tools.run_cmd(["sudo", "apt", "update"], cwd=repo_dir)
+        tools.run_cmd(["sudo", "./debian_install.sh"], cwd=repo_dir)
+
+
+def run(work_dir, machine_name):
+    """Clone, build, run nvbandwidth, parse and report results."""
+    _build(work_dir)
+
+    repo_dir = os.path.join(work_dir, "nvbandwidth")
+    logger.info("Running NVBandwidth...")
+    result = tools.run_cmd(
+        [
+            "./nvbandwidth",
+            "-t",
+            "device_to_host_memcpy_ce",
+            "host_to_device_memcpy_ce",
+            "device_to_device_bidirectional_memcpy_read_ce",
+        ],
+        cwd=repo_dir,
+    )
+    text = result.stdout.decode("utf-8")
+
+    tables = _build_tables(text)
+    for i, (label, table) in enumerate(tables):
+        print(label)
+        print(table)
+        if i == 0:
+            tools.export_markdown("NV Bandwidth", label, table)
         else:
-            results = tools.run_cmd('sudo apt update && sudo ./debian_install.sh', shell=True, cwd=build_path)
-
-    def run(self):
-        current = os.getcwd()
-        logger.info("Running NVBandwidth...")
-        results = tools.run_cmd('./nvbandwidth -t device_to_host_memcpy_ce host_to_device_memcpy_ce device_to_device_bidirectional_memcpy_read_ce', shell=True, cwd=os.path.join(current, 'nvbandwidth'))
-        log = results.stdout.decode('utf-8')
-
-        self.format_output(log)
-
-    @staticmethod
-    def _parse_sections(text):
-        sections = {}
-        current_name = None
-        current_lines = []
-        for line in text.splitlines():
-            stripped = line.strip()
-            # Check if this line is a test name header
-            found = None
-            for name in NVBandwidth.TEST_NAMES:
-                if stripped == name:
-                    found = name
-                    break
-            if found:
-                if current_name is not None:
-                    sections[current_name] = "\n".join(current_lines)
-                current_name = found
-                current_lines = []
-            elif current_name is not None:
-                current_lines.append(line)
-        if current_name is not None:
-            sections[current_name] = "\n".join(current_lines)
-        return sections
-
-    @staticmethod
-    def _extract_summary_table(section_text):
-        table_rows = []
-        for line in section_text.strip().splitlines():
-            stripped = line.strip()
-            if not stripped:
-                if table_rows:
-                    break
-                continue
-            if 'memcpy' in stripped or stripped.startswith('running') or stripped.startswith('SUM'):
-                continue
-            tokens = stripped.split()
-            row = [round(float(x), 1) if x.replace('.', '', 1).isdigit() else x for x in tokens]
-            table_rows.append(row)
-        return table_rows
-
-    def format_output(self, text):
-        sections = self._parse_sections(text)
-        results = []
-        result_labels = []
-        for name, label in zip(self.TEST_NAMES, self.LABELS):
-            if name not in sections:
-                logger.warning("section '%s' not found in nvbandwidth output", name)
-                continue
-            table = self._extract_summary_table(sections[name])
-            results.append(table)
-            result_labels.append(label)
-
-        for i, table in enumerate(results):
-            if not table:
-                continue
-            table[0].insert(0, " ")
-            t = PrettyTable(table[0])
-            for row in table[1:]:
-                t.add_row(row)
-            print(result_labels[i])
-            print(t)
-
-            if i == 0:
-                tools.export_markdown("NV Bandwidth", result_labels[i], t)
-            else:
-                tools.export_markdown(None, result_labels[i], t)
+            tools.export_markdown(None, label, table)

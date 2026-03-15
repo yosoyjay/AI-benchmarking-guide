@@ -95,9 +95,7 @@ def run_HBMBandwidth(sku_name):
 
 
 def run_NVBandwidth(sku_name):
-    test = NV.NVBandwidth("config.json", sku_name)
-    test.build()
-    test.run()
+    NV.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_NCCLBandwidth(sku_name):
