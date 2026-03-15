@@ -1,7 +1,6 @@
 import json
 import os
 import statistics
-import subprocess
 import time
 from Infra import tools
 from prettytable import PrettyTable
@@ -35,12 +34,9 @@ class CPUStream:
         path = "CPUStream"
         isdir = os.path.isdir(path)
         if not isdir:
-            results = subprocess.run(
+            results = tools.run_cmd(
                 ["git", "clone", "https://github.com/UoB-HPC/BabelStream",  path],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
             )
-            tools.write_log(tools.check_error(results))
 
         build_path = os.path.join(current, "CPUStream")
         os.chdir(build_path)
@@ -51,18 +47,14 @@ class CPUStream:
         if not os.path.isdir(babelstream_build_path):
             os.mkdir(babelstream_build_path)
             os.chdir(babelstream_build_path)
-            results = subprocess.run(
+            results = tools.run_cmd(
                 "cmake -DMODEL=omp ..",
                 shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
             )
-            tools.write_log(tools.check_error(results))
-           
-            results = subprocess.run(
-                ["make"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+
+            results = tools.run_cmd(
+                ["make"],
             )
-            tools.write_log(tools.check_error(results))
         else:
             os.chdir(babelstream_build_path)
 
@@ -74,10 +66,9 @@ class CPUStream:
         runs_executed = 0
         buffer = []
         while runs_executed < self.num_runs:
-            results = subprocess.run(
-                f"OMP_NUM_THREADS={self.cpu_count} OMP_PROC_BIND=spread taskset -c 0-{self.cpu_count - 1} ./omp-stream", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            results = tools.run_cmd(
+                f"OMP_NUM_THREADS={self.cpu_count} OMP_PROC_BIND=spread taskset -c 0-{self.cpu_count - 1} ./omp-stream", shell=True,
             )
-            tools.write_log(tools.check_error(results))
             log = tools.parse_babelstream_output(results.stdout.decode("utf-8"))
             buffer.append(log)
             runs_executed += 1

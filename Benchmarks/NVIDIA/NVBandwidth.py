@@ -33,18 +33,16 @@ class NVBandwidth:
             os.chdir(build_path)
 
         if os.path.exists("/.dockerenv"):
-            results = subprocess.run('apt update && ./debian_install.sh', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            results = tools.run_cmd('apt update && ./debian_install.sh', shell=True)
         else:
-            results = subprocess.run('sudo apt update && sudo ./debian_install.sh', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        tools.write_log(tools.check_error(results))
+            results = tools.run_cmd('sudo apt update && sudo ./debian_install.sh', shell=True)
         os.chdir(current)
 
     def run(self):
         current = os.getcwd()
         os.chdir(os.path.join(current, 'nvbandwidth'))
         print("Running NVBandwidth...")
-        results = subprocess.run('./nvbandwidth -t device_to_host_memcpy_ce host_to_device_memcpy_ce device_to_device_bidirectional_memcpy_read_ce', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        tools.write_log(tools.check_error(results))
+        results = tools.run_cmd('./nvbandwidth -t device_to_host_memcpy_ce host_to_device_memcpy_ce device_to_device_bidirectional_memcpy_read_ce', shell=True)
         log = results.stdout.decode('utf-8')
         os.chdir(current)
 

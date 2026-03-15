@@ -1,6 +1,5 @@
 import os
 from Infra import tools
-import subprocess
 import json
 from prettytable import PrettyTable
 from huggingface_hub import snapshot_download
@@ -30,18 +29,14 @@ class LLMBenchmark:
         # Clone TensorRT-LLM repo
         if not os.path.exists(os.path.join(self.dir_path, 'TensorRT-LLM')):
             print("Cloning TensorRT-LLM repository from https://github.com/NVIDIA/TensorRT-LLM.git")
-            i4 = subprocess.run("git clone https://github.com/NVIDIA/TensorRT-LLM.git && cd TensorRT-LLM && git checkout v0.18.2", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
-            tools.write_log(tools.check_error(i4))
+            i4 = tools.run_cmd("git clone https://github.com/NVIDIA/TensorRT-LLM.git && cd TensorRT-LLM && git checkout v0.18.2", shell=True, env=self.env)
 
             if not os.path.exists("/.dockerenv"):
                 # Install required packages
                 print("No Docker container detected. Installing tensorrt-llm")
-                i2 = subprocess.run("pip install tensorrt-llm==0.18.2", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
-                tools.write_log(tools.check_error(i2))
-                i2 = subprocess.run("sudo apt update && sudo apt-get -y install libopenmpi-dev", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
-                tools.write_log(tools.check_error(i2))
-                i2 = subprocess.run("pip3 install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt-libs", shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
-                tools.write_log(tools.check_error(i2))
+                i2 = tools.run_cmd("pip install tensorrt-llm==0.18.2", shell=True, env=self.env)
+                i2 = tools.run_cmd("sudo apt update && sudo apt-get -y install libopenmpi-dev", shell=True, env=self.env)
+                i2 = tools.run_cmd("pip3 install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt-libs", shell=True, env=self.env)
 
     def download_models(self):
         for model_name in self.config['models']:
@@ -79,8 +74,7 @@ class LLMBenchmark:
                             --output-stdev=0 > {dataset_path}
                             '''
     
-                        be2 = subprocess.run(prepare_dataset_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
-                        tools.write_log(tools.check_error(be2))
+                        be2 = tools.run_cmd(prepare_dataset_command, shell=True, env=self.env)
 
                 if not os.path.exists(self.dir_path + "/engines/" + model_name):
                     print("Building engine for ", model_name)
@@ -93,8 +87,7 @@ class LLMBenchmark:
                         --quantization {self.config['models'][model_name]['precision']}
                         '''
 
-                    be2 = subprocess.run(build_engine_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
-                    tools.write_log(tools.check_error(be2))
+                    be2 = tools.run_cmd(build_engine_command, shell=True, env=self.env)
 
     def run_benchmark(self):
         for model_name in self.config['models']:
@@ -118,9 +111,8 @@ class LLMBenchmark:
                         --engine_dir {self.dir_path + "/engines/" + model_name + "/tp_" + str(tp) + "_pp_1"} > {results_path}
                         '''
 
-                    be2 = subprocess.run(run_benchmark_command, shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE, env=self.env)
+                    be2 = tools.run_cmd(run_benchmark_command, shell=True, env=self.env)
                     self.extract_benchmark_info(results_path)
-                    tools.write_log(tools.check_error(be2))
                 print(self.table)
                 tools.export_markdown(model_name, "Performance results with FP8 quantization, 1000 requests.", self.table)
 

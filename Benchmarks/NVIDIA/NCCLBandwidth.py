@@ -20,8 +20,7 @@ class NCCLBandwidth:
             results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nccl.git', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl')
             os.chdir(build_path)
-            results = subprocess.run('make -j src.build', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
+            results = tools.run_cmd('make -j src.build', shell=True)
             os.chdir(current)
 
         nccl_home = current + '/nccl/build'
@@ -35,8 +34,7 @@ class NCCLBandwidth:
             results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nccl-tests.git', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl-tests')
             os.chdir(build_path)
-            results = subprocess.run(['make'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
-            tools.write_log(tools.check_error(results))
+            results = tools.run_cmd(['make'], env=self.env)
         else:
             build_path = os.path.join(current, 'nccl-tests')
             os.chdir(build_path)
@@ -53,8 +51,7 @@ class NCCLBandwidth:
             self.algo = "Ring"
         print("Running NCCL AllReduce on " + num_gpus + " GPUs")
 
-        results = subprocess.run('NCCL_ALGO='+ self.algo +' ./build/all_reduce_perf -b 8 -e 8G -f 2 -g ' + num_gpus + ' -n 40 | grep float', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
-        tools.write_log(tools.check_error(results))
+        results = tools.run_cmd('NCCL_ALGO='+ self.algo +' ./build/all_reduce_perf -b 8 -e 8G -f 2 -g ' + num_gpus + ' -n 40 | grep float', shell=True, env=self.env)
         res = results.stdout.decode('utf-8').split('\n')
         sizes = []
         log = []

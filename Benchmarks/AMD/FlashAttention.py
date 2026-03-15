@@ -1,4 +1,3 @@
-import subprocess
 import os
 import docker
 import re
@@ -40,14 +39,12 @@ class FlashAttention:
         path ='flash-attention'
         isdir = os.path.isdir(path)
         if not isdir:
-            results = subprocess.run('git clone https://github.com/Dao-AILab/flash-attention.git',shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
+            results = tools.run_cmd('git clone https://github.com/Dao-AILab/flash-attention.git',shell=True)
 
         build_path = os.path.join(current, 'flash-attention')
         os.chdir(build_path)
 
-        results = subprocess.run('git checkout 418d677',shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        tools.write_log(tools.check_error(results))
+        results = tools.run_cmd('git checkout 418d677',shell=True)
 
         self.create_container()
         print("Running Flash Attention...")

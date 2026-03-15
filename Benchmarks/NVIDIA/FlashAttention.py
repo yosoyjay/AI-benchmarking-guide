@@ -20,8 +20,7 @@ class FlashAttention:
         os.chdir(build_path)
 
         print("Running Flash Attention with batch size=2, seqlen=8192...")
-        results = subprocess.run('python3 benchmark_flash_attention.py | grep -A 2 "batch_size=2, seqlen=8192 ###"',shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        tools.write_log(tools.check_error(results))
+        results = tools.run_cmd('python3 benchmark_flash_attention.py | grep -A 2 "batch_size=2, seqlen=8192 ###"',shell=True)
         os.chdir(current)
 
         table = PrettyTable(["causal", "headdim", "Flash2 total (TFLOPs)", "Pytorch total (TFLOPs)"])

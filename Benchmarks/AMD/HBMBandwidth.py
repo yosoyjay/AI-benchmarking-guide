@@ -3,7 +3,6 @@ import os
 import statistics
 import time
 from prettytable import PrettyTable
-import subprocess
 from Infra import tools
 
 class HBMBandwidth:
@@ -35,10 +34,8 @@ class HBMBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             clone_cmd = "git clone https://github.com/gitaumark/BabelStream " + self.dir_path + "/BabelStream"
-            results = subprocess.run(clone_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
-            results = subprocess.run('cd ' + self.dir_path + '/BabelStream && cmake -Bbuild -H. -DMODEL=hip -DRELEASE_FLAGS="-O3" -DCMAKE_CXX_COMPILER=hipcc && cmake --build build', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
+            results = tools.run_cmd(clone_cmd, shell=True)
+            results = tools.run_cmd('cd ' + self.dir_path + '/BabelStream && cmake -Bbuild -H. -DMODEL=hip -DRELEASE_FLAGS="-O3" -DCMAKE_CXX_COMPILER=hipcc && cmake --build build', shell=True)
 
     def run(self):
         print("Running HBM Bandwidth...")
@@ -46,8 +43,7 @@ class HBMBandwidth:
         buffer = []
         while runs_executed < self.num_runs:
             run_cmd = 'sudo "' + self.dir_path + '/BabelStream/build/hip-stream"'
-            results = subprocess.run(run_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
+            results = tools.run_cmd(run_cmd, shell=True)
             log = tools.parse_babelstream_output(results.stdout.decode("utf-8"))
             buffer.append(log)
 

@@ -6,6 +6,16 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 pwd = _PROJECT_ROOT + "/Outputs/log.txt"
 curr = _PROJECT_ROOT
 
+def run_cmd(cmd, *, shell=False, env=None, cwd=None, **kwargs):
+    """Run a command, log output, and return the CompletedProcess."""
+    result = subprocess.run(
+        cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env=env, cwd=cwd, **kwargs,
+    )
+    write_log(check_error(result))
+    return result
+
+
 def create_dir(name: str):
     current = os.getcwd()
     outdir = os.path.join(str(current), name)

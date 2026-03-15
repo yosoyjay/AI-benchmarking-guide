@@ -1,5 +1,4 @@
 import os
-import subprocess
 from prettytable import PrettyTable
 from Infra import tools
 
@@ -15,19 +14,15 @@ class TransferBench:
         if not isdir:
             print("Building TransferBench...")
             clone_cmd = 'git clone https://github.com/ROCm/TransferBench.git "' + self.dir_path + '/TransferBench"'
-            results = subprocess.run(clone_cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
-            results = subprocess.run('mkdir -p "' + self.dir_path + '/TransferBench/build"', shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
+            results = tools.run_cmd(clone_cmd, shell=True)
+            results = tools.run_cmd('mkdir -p "' + self.dir_path + '/TransferBench/build"', shell=True)
 
-            results = subprocess.run('cd "' + self.dir_path + '/TransferBench/build" && CXX=/opt/rocm/bin/hipcc cmake .. && make', shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-            tools.write_log(tools.check_error(results))
+            results = tools.run_cmd('cd "' + self.dir_path + '/TransferBench/build" && CXX=/opt/rocm/bin/hipcc cmake .. && make', shell=True)
 
     def run(self):
         print("Running TransferBench...")
         run_cmd = 'sudo "' + self.dir_path + '/TransferBench/build/TransferBench" "' + self.dir_path + '/Benchmarks/AMD/transferbench.cfg" | grep -v \'=\' | grep \'sum\''
-        results = subprocess.run(run_cmd, shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-        tools.write_log(tools.check_error(results))
+        results = tools.run_cmd(run_cmd, shell=True)
         table = PrettyTable(["Test", "Result"])
         if results.returncode != 0:
             print(f"Warning: TransferBench failed: returncode={results.returncode}")

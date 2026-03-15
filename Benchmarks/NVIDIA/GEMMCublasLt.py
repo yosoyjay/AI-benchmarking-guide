@@ -37,17 +37,14 @@ class GEMMCublastLt:
         path = "superbenchmark"
         isdir = os.path.isdir(path)
         if not isdir:
-            results = subprocess.run(
+            results = tools.run_cmd(
                 [
                     "git",
                     "clone",
                     "https://github.com/gitaumark/superbenchmark",
                     path,
                 ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
             )
-            tools.write_log(tools.check_error(results))
             
         if self.datatype == "fp4e2m1":
             results = subprocess.run("cd superbenchmark && git checkout fp4", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -61,15 +58,13 @@ class GEMMCublastLt:
         )
         os.chdir(build_path)
 
-        results = subprocess.run(
-            ["cmake", "-S", "./"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        results = tools.run_cmd(
+            ["cmake", "-S", "./"],
         )
-        tools.write_log(tools.check_error(results))
 
-        results = subprocess.run(
-            ["make"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        results = tools.run_cmd(
+            ["make"],
         )
-        tools.write_log(tools.check_error(results))
         print(results.stderr.decode('utf-8'))
         results = subprocess.run(
             ["mv", "cublaslt_gemm", bindir],
