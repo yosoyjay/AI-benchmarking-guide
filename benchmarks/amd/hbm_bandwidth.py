@@ -2,7 +2,6 @@
 
 import logging
 import os
-import statistics
 import time
 
 from infra import tools
@@ -64,21 +63,7 @@ def run(
         time.sleep(int(interval))
 
     if ctx is not None:
-        ops = {name: [] for name in tools.BABELSTREAM_OPS}
-        for log in buffer:
-            if len(log) < 5:
-                continue
-            for idx, name in enumerate(tools.BABELSTREAM_OPS):
-                ops[name].append(float(log[idx][1]))
-        summary = {}
-        for name in tools.BABELSTREAM_OPS:
-            values = ops[name]
-            if values:
-                summary[name] = {
-                    "min": round(min(values) / 1_000_000, 2),
-                    "max": round(max(values) / 1_000_000, 2),
-                    "mean": round(statistics.mean(values) / 1_000_000, 2),
-                }
+        summary = tools.aggregate_babelstream_runs(buffer, divisor=1_000_000)
         ctx.extra["units"] = "TB/s"
         return summary
 

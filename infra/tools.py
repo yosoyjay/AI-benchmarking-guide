@@ -181,6 +181,32 @@ def parse_babelstream_output(raw_output: str) -> list[list[str]]:
     return results
 
 
+def aggregate_babelstream_runs(buffer: list[list[list[str]]], divisor: float) -> dict[str, dict[str, float]]:
+    """Compute min/max/mean across BabelStream runs, scaled by *divisor*.
+
+    Each element of *buffer* is the output of ``parse_babelstream_output``.
+    Returns ``{op_name: {"min": ..., "max": ..., "mean": ...}}``.
+    """
+    import statistics
+
+    ops: dict[str, list[float]] = {name: [] for name in BABELSTREAM_OPS}
+    for log in buffer:
+        if len(log) < 5:
+            continue
+        for idx, name in enumerate(BABELSTREAM_OPS):
+            ops[name].append(float(log[idx][1]))
+    summary: dict[str, dict[str, float]] = {}
+    for name in BABELSTREAM_OPS:
+        values = ops[name]
+        if values:
+            summary[name] = {
+                "min": round(min(values) / divisor, 2),
+                "max": round(max(values) / divisor, 2),
+                "mean": round(statistics.mean(values) / divisor, 2),
+            }
+    return summary
+
+
 def summarize_babelstream(
     buffer: list[list[list[str]]], *, divisor: float, units: str, title: str, description: str
 ) -> PrettyTable | None:
