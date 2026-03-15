@@ -98,7 +98,11 @@ def _write_system_specs(session_dir: Path, gpu_name: str) -> None:
             pyt = "unknown"
         table.add_row(["pytorch", pyt])
     print(table)
-    tools.export_markdown(f"{gpu_name} Benchmarking Guide", "", table)
+    md_table = tools.prettytable_to_markdown(table)
+    with open(summary_path, "a") as f:
+        f.write(f"## {gpu_name} Benchmarking Guide\n\n")
+        f.write(md_table)
+        f.write("\n\n")
 
 
 def _make_ctx(benchmark: str, sku: str, session_dir: Path, version: str, timestamp: datetime) -> RunContext:
