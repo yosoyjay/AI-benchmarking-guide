@@ -5,6 +5,9 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Any
+
+from prettytable import PrettyTable
 
 from infra.capture import RunContext
 
@@ -29,7 +32,7 @@ CSV_COLUMNS = [
 
 
 def write_processed_csv(
-    rows: list[dict],
+    rows: list[dict[str, str]],
     run_dir: Path,
     benchmark: str,
     version: str,
@@ -50,7 +53,7 @@ def write_processed_csv(
     return csv_path
 
 
-def append_combined(rows: list[dict], combined_path: Path) -> None:
+def append_combined(rows: list[dict[str, str]], combined_path: Path) -> None:
     """Append long-format rows to *combined_path*, writing a header if the file is new."""
     write_header = not combined_path.exists() or combined_path.stat().st_size == 0
     with open(combined_path, "a", newline="", encoding="utf-8") as f:
@@ -65,7 +68,9 @@ def append_combined(rows: list[dict], combined_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _row(ctx: RunContext, metric_name: str, metric_value, unit: str, metadata: dict) -> dict:
+def _row(
+    ctx: RunContext, metric_name: str, metric_value: str | int | float, unit: str, metadata: dict[str, Any]
+) -> dict[str, str]:
     """Build a single long-format CSV row dict from context + metric."""
     return {
         "datetime": ctx.timestamp.isoformat(),
@@ -85,7 +90,7 @@ def _row(ctx: RunContext, metric_name: str, metric_value, unit: str, metadata: d
 # ---------------------------------------------------------------------------
 
 
-def gemm_cublas_lt_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
+def gemm_cublas_lt_to_csv(ctx: RunContext, parsed: list[dict[str, str]]) -> list[dict[str, str]]:
     """Convert gemm_cublas_lt parsed rows to long-format CSV rows."""
     rows = []
     datatype = ctx.extra.get("datatype", "")
@@ -96,7 +101,7 @@ def gemm_cublas_lt_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
     return rows
 
 
-def gemm_hipblas_lt_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
+def gemm_hipblas_lt_to_csv(ctx: RunContext, parsed: list[dict[str, str | float]]) -> list[dict[str, str]]:
     """Convert gemm_hipblas_lt parsed rows to long-format CSV rows."""
     rows = []
     datatype = ctx.extra.get("datatype", "FP8")
@@ -106,7 +111,7 @@ def gemm_hipblas_lt_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
     return rows
 
 
-def nccl_bandwidth_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
+def nccl_bandwidth_to_csv(ctx: RunContext, parsed: list[dict[str, str]]) -> list[dict[str, str]]:
     """Convert nccl_bandwidth parsed rows to long-format CSV rows."""
     algo = ctx.extra.get("algorithm", "")
     rows = []
@@ -116,7 +121,7 @@ def nccl_bandwidth_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
     return rows
 
 
-def rccl_bandwidth_to_csv(ctx: RunContext, parsed: list[dict], algo: str) -> list[dict]:
+def rccl_bandwidth_to_csv(ctx: RunContext, parsed: list[dict[str, str]], algo: str) -> list[dict[str, str]]:
     """Convert rccl_bandwidth parsed rows for one algorithm to long-format CSV rows."""
     rows = []
     for r in parsed:
@@ -125,7 +130,7 @@ def rccl_bandwidth_to_csv(ctx: RunContext, parsed: list[dict], algo: str) -> lis
     return rows
 
 
-def flash_attention_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
+def flash_attention_to_csv(ctx: RunContext, parsed: list[dict[str, str | int | float]]) -> list[dict[str, str]]:
     """Convert flash_attention parsed rows to long-format CSV rows."""
     rows = []
     for r in parsed:
@@ -135,7 +140,7 @@ def flash_attention_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
     return rows
 
 
-def hbm_bandwidth_to_csv(ctx: RunContext, summary: dict) -> list[dict]:
+def hbm_bandwidth_to_csv(ctx: RunContext, summary: dict[str, dict[str, float]]) -> list[dict[str, str]]:
     """Convert BabelStream summary (min/max/mean per operation) to CSV rows.
 
     *summary* is ``{op_name: {"min": v, "max": v, "mean": v}}``.
@@ -149,7 +154,7 @@ def hbm_bandwidth_to_csv(ctx: RunContext, summary: dict) -> list[dict]:
     return rows
 
 
-def cpu_stream_to_csv(ctx: RunContext, summary: dict) -> list[dict]:
+def cpu_stream_to_csv(ctx: RunContext, summary: dict[str, dict[str, float]]) -> list[dict[str, str]]:
     """Convert CPU BabelStream summary to CSV rows. Same shape as hbm_bandwidth."""
     rows = []
     for op_name, stats in summary.items():
@@ -160,7 +165,7 @@ def cpu_stream_to_csv(ctx: RunContext, summary: dict) -> list[dict]:
     return rows
 
 
-def nv_bandwidth_to_csv(ctx: RunContext, tables: list) -> list[dict]:
+def nv_bandwidth_to_csv(ctx: RunContext, tables: list[tuple[str, PrettyTable]]) -> list[dict[str, str]]:
     """Convert nv_bandwidth (label, PrettyTable) pairs to CSV rows.
 
     Each table has columns like ``[" ", "GPU0", "GPU1", ...]`` with numeric
@@ -183,7 +188,9 @@ def nv_bandwidth_to_csv(ctx: RunContext, tables: list) -> list[dict]:
     return rows
 
 
-def multichase_to_csv(ctx: RunContext, node_names: list, parsed_rows: list[dict]) -> list[dict]:
+def multichase_to_csv(
+    ctx: RunContext, node_names: list[str], parsed_rows: list[dict[str, Any]]
+) -> list[dict[str, str]]:
     """Convert multichase parsed rows to long-format CSV rows."""
     rows = []
     for r in parsed_rows:
@@ -194,7 +201,7 @@ def multichase_to_csv(ctx: RunContext, node_names: list, parsed_rows: list[dict]
     return rows
 
 
-def fio_to_csv(ctx: RunContext, parsed: list[tuple]) -> list[dict]:
+def fio_to_csv(ctx: RunContext, parsed: list[tuple[str, str, str]]) -> list[dict[str, str]]:
     """Convert fio parsed rows (rw, bs, bw) to long-format CSV rows."""
     rows = []
     for rw, bs, bw in parsed:
@@ -203,7 +210,7 @@ def fio_to_csv(ctx: RunContext, parsed: list[tuple]) -> list[dict]:
     return rows
 
 
-def transfer_bench_to_csv(ctx: RunContext, parsed: dict) -> list[dict]:
+def transfer_bench_to_csv(ctx: RunContext, parsed: dict[str, str]) -> list[dict[str, str]]:
     """Convert transfer_bench parsed dict to long-format CSV rows."""
     rows = []
     for direction, bw in parsed.items():
@@ -212,7 +219,7 @@ def transfer_bench_to_csv(ctx: RunContext, parsed: dict) -> list[dict]:
     return rows
 
 
-def llm_benchmark_nv_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
+def llm_benchmark_nv_to_csv(ctx: RunContext, parsed: list[dict[str, str]]) -> list[dict[str, str]]:
     """Convert NVIDIA LLM benchmark parsed rows to long-format CSV rows."""
     rows = []
     model = ctx.extra.get("model", "")
@@ -222,7 +229,7 @@ def llm_benchmark_nv_to_csv(ctx: RunContext, parsed: list[dict]) -> list[dict]:
     return rows
 
 
-def llm_benchmark_amd_to_csv(ctx: RunContext, parsed: list[tuple]) -> list[dict]:
+def llm_benchmark_amd_to_csv(ctx: RunContext, parsed: list[tuple[str, str, str, str]]) -> list[dict[str, str]]:
     """Convert AMD LLM benchmark parsed rows to long-format CSV rows.
 
     *parsed* is list of (input_len, output_len, tp_size, throughput) tuples.
@@ -235,7 +242,7 @@ def llm_benchmark_amd_to_csv(ctx: RunContext, parsed: list[tuple]) -> list[dict]
     return rows
 
 
-def llama3_pretrain_to_csv(ctx: RunContext, time_ss, loss_ss) -> list[dict]:
+def llama3_pretrain_to_csv(ctx: RunContext, time_ss: float | None, loss_ss: float | None) -> list[dict[str, str]]:
     """Convert LLAMA3 pretraining steady-state results to CSV rows."""
     rows = []
     model_size = ctx.extra.get("model_size", "")
@@ -255,7 +262,7 @@ def llama3_pretrain_to_csv(ctx: RunContext, time_ss, loss_ss) -> list[dict]:
 def process_run(
     benchmark: str,
     ctx: RunContext,
-    csv_rows: list[dict],
+    csv_rows: list[dict[str, str]],
 ) -> Path | None:
     """Write per-benchmark CSV, append to combined, return processed CSV path.
 
