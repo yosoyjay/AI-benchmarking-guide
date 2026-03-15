@@ -1,6 +1,8 @@
 """Reusable Docker container helpers for AMD ROCm benchmarks."""
 
 import logging
+from types import TracebackType
+from typing import Any
 
 import docker
 
@@ -45,7 +47,7 @@ class AmdContainer:
         self._client: docker.DockerClient | None = None
         self._container = None
 
-    def __enter__(self):
+    def __enter__(self) -> Any:
         self._client = docker.from_env()
 
         opts: dict = {**_AMD_BASE_OPTIONS}
@@ -61,7 +63,9 @@ class AmdContainer:
         logger.info("Created container %s", self._container.id)
         return self._container
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: TracebackType | None
+    ) -> bool:
         try:
             if self._container is not None:
                 self._container.kill()

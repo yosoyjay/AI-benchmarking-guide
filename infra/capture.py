@@ -5,6 +5,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class RunContext:
     timestamp: datetime
     results_dir: Path  # project_root/results
     run_dir: Path  # results/<benchmark>_<sku>_<datetime>/
-    extra: dict = field(default_factory=dict)  # benchmark-specific context
+    extra: dict[str, Any] = field(default_factory=dict)  # benchmark-specific context
 
 
 def get_version() -> str:
@@ -83,7 +84,9 @@ def save_raw(
     return stdout_path, stderr_path
 
 
-def capture_cmd(cmd, *, ctx: RunContext, suffix: str = "", **kwargs) -> subprocess.CompletedProcess:
+def capture_cmd(
+    cmd: list[str] | str, *, ctx: RunContext, suffix: str = "", **kwargs: Any
+) -> subprocess.CompletedProcess[bytes]:
     """Run *cmd* via subprocess, save raw output, return CompletedProcess.
 
     Wraps ``subprocess.run`` with ``stdout=PIPE, stderr=PIPE``.  The
@@ -112,12 +115,12 @@ def capture_cmd(cmd, *, ctx: RunContext, suffix: str = "", **kwargs) -> subproce
 
 
 def capture_docker(
-    container,
-    cmd,
+    container: Any,
+    cmd: list[str] | str,
     *,
     ctx: RunContext,
     suffix: str = "",
-    **kwargs,
+    **kwargs: Any,
 ) -> tuple[str, str, int]:
     """Run *cmd* inside a Docker container, save raw output.
 
