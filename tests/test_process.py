@@ -48,7 +48,8 @@ def _sample_row(**overrides: str) -> dict[str, str]:
 
 def _make_ctx(tmp_path: Path, benchmark: str = "test_bench", **extra: Any) -> RunContext:
     """Build a RunContext rooted in tmp_path."""
-    run_dir = tmp_path / "run"
+    session_dir = tmp_path / "session"
+    run_dir = session_dir / "run"
     (run_dir / "raw").mkdir(parents=True, exist_ok=True)
     (run_dir / "processed").mkdir(parents=True, exist_ok=True)
     ts = datetime(2025, 6, 1, 12, 0, 0)
@@ -58,7 +59,7 @@ def _make_ctx(tmp_path: Path, benchmark: str = "test_bench", **extra: Any) -> Ru
         platform="nvidia",
         version="abc123",
         timestamp=ts,
-        results_dir=tmp_path,
+        session_dir=session_dir,
         run_dir=run_dir,
         extra=extra,
     )
@@ -385,7 +386,7 @@ class TestProcessRun:
         path = process_run("test_bench", ctx, csv_rows)
         assert path is not None
         assert path.exists()
-        combined = tmp_path / "combined.csv"
+        combined = ctx.session_dir / "combined.csv"
         assert combined.exists()
 
     def test_returns_none_for_empty_rows(self, tmp_path: Path) -> None:
@@ -397,7 +398,7 @@ class TestProcessRun:
         ctx = _make_ctx(tmp_path, "test_bench")
         process_run("test_bench", ctx, [_sample_row(metric_value="1")])
         process_run("test_bench", ctx, [_sample_row(metric_value="2")])
-        combined = tmp_path / "combined.csv"
+        combined = ctx.session_dir / "combined.csv"
         with open(combined) as f:
             reader = csv.DictReader(f)
             data = list(reader)

@@ -13,7 +13,7 @@ from benchmarks.amd import llm_benchmark as llmb
 from benchmarks.amd import rccl_bandwidth as RCCL
 from benchmarks.amd import transfer_bench as TB
 from infra import process, tools
-from infra.capture import RunContext, get_version, make_run_dir
+from infra.capture import RunContext, get_version, make_run_dir, make_session_dir
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +46,9 @@ def _detect_sku() -> str:
     return "ND_MI300X_v5"
 
 
-def get_system_specs() -> str:
-    with open(os.path.join("Outputs", "system_specs.txt"), "w") as file:
+def get_system_specs(session_dir: Path) -> str:
+    specs_path = session_dir / "system_specs.txt"
+    with open(specs_path, "w") as file:
 
         results = subprocess.run(
             "rocminfo | grep 'ROCk module version'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -108,16 +109,16 @@ def get_system_specs() -> str:
     return _detect_sku()
 
 
-def _make_ctx(benchmark: str, sku: str, results_dir: Path, version: str, timestamp: datetime) -> RunContext:
+def _make_ctx(benchmark: str, sku: str, session_dir: Path, version: str, timestamp: datetime) -> RunContext:
     """Create a RunContext for a single benchmark."""
-    run_dir = make_run_dir(results_dir, benchmark, sku, timestamp)
+    run_dir = make_run_dir(session_dir, benchmark)
     return RunContext(
         benchmark=benchmark,
         sku=sku,
         platform=_PLATFORM,
         version=version,
         timestamp=timestamp,
-        results_dir=results_dir,
+        session_dir=session_dir,
         run_dir=run_dir,
     )
 
@@ -198,8 +199,6 @@ def main() -> None:
     args = parser.parse_args()
 
     current = os.getcwd()
-    tools.create_dir("Outputs")
-    machine_name = get_system_specs()
 
     # Structured output pipeline
     version = get_version()
@@ -207,8 +206,17 @@ def main() -> None:
     results_dir.mkdir(exist_ok=True)
     timestamp = datetime.now()
 
+    # Detect SKU first so we can name the session dir
+    machine_name = _detect_sku()
+    session_dir = make_session_dir(results_dir, machine_name, timestamp)
+
+    tools.set_log_path(str(session_dir / "log.txt"))
+    tools.set_summary_path(str(session_dir / "summary.md"))
+
+    get_system_specs(session_dir)
+
     def _ctx(benchmark):
-        return _make_ctx(benchmark, machine_name, results_dir, version, timestamp)
+        return _make_ctx(benchmark, machine_name, session_dir, version, timestamp)
 
     dispatch = {
         "gemm": lambda: run_GEMMHipBLAS(machine_name, current, ctx=_ctx("gemm_hipblas_lt")),

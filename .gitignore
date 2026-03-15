@@ -133,6 +133,7 @@ nccl/
 flash-attention/
 nccl-tests/
 Outputs/
+results/
 __pycache__/
 nvbandwidth/
 superbenchmark/

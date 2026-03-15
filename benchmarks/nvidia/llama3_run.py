@@ -76,6 +76,7 @@ def _plot_results(
     text: str,
     model_size: str,
     machine_name: str,
+    output_dir: str = "Outputs",
 ) -> tuple[float | None, float | None]:
     """Parse training output, generate loss/time plots, return steady-state values."""
     global_steps, train_losses, train_times = parse_llama3_output(text)
@@ -121,8 +122,8 @@ def _plot_results(
         annot.append(f"The time steady state is {time_ss:.2f}s")
     fig.text(0.5, 0.01, ";  ".join(annot), ha="center", fontsize=12, style="italic")
 
-    # save to outputs folder
-    plot_path = os.path.join("Outputs", f"LLAMA3_{model_size}_Pretrain_Results")
+    # save to output dir
+    plot_path = os.path.join(output_dir, f"LLAMA3_{model_size}_Pretrain_Results")
     plt.savefig(plot_path, dpi=300)
     logger.info("Training loss and time plot with steady state saved to %s", plot_path)
     tools.write_log(f"Training loss and time plot with steady state saved to {plot_path}")
@@ -207,7 +208,9 @@ def run(
     logger.info("Pretraining has finished with output saved to: %s. Now plotting.", log_path)
     with open(log_path, "r", encoding="utf-8") as f:
         text = f.read()
-    time_ss, loss_ss = _plot_results(text, model_size, machine_name)
+    # Use session dir for plots when running through a runner, else Outputs/
+    plot_dir = os.path.dirname(tools._summary_path) if tools._summary_path else "Outputs"
+    time_ss, loss_ss = _plot_results(text, model_size, machine_name, output_dir=plot_dir)
 
     # add summary to markdown
     table = PrettyTable()

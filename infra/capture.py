@@ -21,8 +21,8 @@ class RunContext:
     platform: str  # "nvidia" or "amd"
     version: str  # git describe --always --dirty
     timestamp: datetime
-    results_dir: Path  # project_root/results
-    run_dir: Path  # results/<benchmark>_<sku>_<datetime>/
+    session_dir: Path  # results/<sku>_<timestamp>/
+    run_dir: Path  # results/<sku>_<timestamp>/<benchmark>/
     extra: dict[str, Any] = field(default_factory=dict)  # benchmark-specific context
 
 
@@ -51,11 +51,18 @@ def _format_timestamp(ts: datetime) -> str:
     return ts.strftime("%Y%m%d_%H%M%S")
 
 
-def make_run_dir(results_dir: Path, benchmark: str, sku: str, timestamp: datetime) -> Path:
-    """Create and return ``results/<benchmark>_<sku>_<datetime>/`` with raw/ and processed/ subdirs."""
+def make_session_dir(results_dir: Path, sku: str, timestamp: datetime) -> Path:
+    """Create and return ``results/<sku>_<timestamp>/``."""
     safe_sku = _sanitize_sku(sku)
     ts_str = _format_timestamp(timestamp)
-    run_dir = results_dir / f"{benchmark}_{safe_sku}_{ts_str}"
+    session_dir = results_dir / f"{safe_sku}_{ts_str}"
+    session_dir.mkdir(parents=True, exist_ok=True)
+    return session_dir
+
+
+def make_run_dir(session_dir: Path, benchmark: str) -> Path:
+    """Create and return ``session_dir/<benchmark>/`` with raw/ and processed/ subdirs."""
+    run_dir = session_dir / benchmark
     (run_dir / "raw").mkdir(parents=True, exist_ok=True)
     (run_dir / "processed").mkdir(parents=True, exist_ok=True)
     return run_dir

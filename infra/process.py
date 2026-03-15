@@ -274,6 +274,6 @@ def process_run(
         return None
 
     csv_path = write_processed_csv(csv_rows, ctx.run_dir, benchmark, ctx.version, ctx.timestamp)
-    combined_path = ctx.results_dir / "combined.csv"
+    combined_path = ctx.session_dir / "combined.csv"
     append_combined(csv_rows, combined_path)
     return csv_path

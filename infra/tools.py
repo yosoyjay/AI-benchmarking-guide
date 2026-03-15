@@ -11,8 +11,22 @@ from prettytable import PrettyTable
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_LOG_PATH = os.path.join(_PROJECT_ROOT, "Outputs", "log.txt")
 curr = _PROJECT_ROOT
+
+_log_path: str | None = None
+_summary_path: str | None = None
+
+
+def set_log_path(path: str) -> None:
+    """Set the destination for write_log(). Called once from each runner's main()."""
+    global _log_path
+    _log_path = path
+
+
+def set_summary_path(path: str) -> None:
+    """Set the destination for export_markdown(). Called once from each runner's main()."""
+    global _summary_path
+    _summary_path = path
 
 
 def run_cmd(
@@ -54,11 +68,15 @@ def create_dir(name: str) -> str:
     return outdir
 
 
-def write_log(message: str, filename: str = _LOG_PATH) -> None:
+def write_log(message: str, filename: str | None = None) -> None:
+    target = filename or _log_path
+    if target is None:
+        logger.info(message)
+        return
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}]\n {message}\n"
 
-    with open(filename, "a") as file:
+    with open(target, "a") as file:
         file.write(log_entry)
 
 
@@ -107,7 +125,10 @@ def export_markdown(title: str | None, description: str, table: PrettyTable | No
         stacklevel=2,
     )
     md_table = prettytable_to_markdown(table)
-    filename = os.path.join(curr, "Outputs", f"{get_hostname()}_summary.md")
+    if _summary_path is not None:
+        filename = _summary_path
+    else:
+        filename = os.path.join(curr, "Outputs", f"{get_hostname()}_summary.md")
     with open(filename, "a") as file:
         if title is not None:
             file.write(f"## {title}\n\n")

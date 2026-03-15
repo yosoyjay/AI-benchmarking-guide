@@ -1,4 +1,4 @@
-"""Tests for infra.capture -- RunContext, get_version, make_run_dir, save_raw, capture_cmd, capture_docker."""
+"""Tests for infra.capture -- RunContext, get_version, make_session_dir, make_run_dir, save_raw, capture_cmd, capture_docker."""
 
 import subprocess
 from datetime import datetime
@@ -14,6 +14,7 @@ from infra.capture import (
     capture_docker,
     get_version,
     make_run_dir,
+    make_session_dir,
     save_raw,
 )
 
@@ -31,7 +32,7 @@ class TestRunContext:
             platform="nvidia",
             version="abc1234",
             timestamp=ts,
-            results_dir=tmp_path,
+            session_dir=tmp_path,
             run_dir=tmp_path / "run",
         )
         assert ctx.benchmark == "gemm_cublas_lt"
@@ -47,7 +48,7 @@ class TestRunContext:
             platform="nvidia",
             version="v",
             timestamp=ts,
-            results_dir=tmp_path,
+            session_dir=tmp_path,
             run_dir=tmp_path,
         )
         assert ctx.extra == {}
@@ -109,28 +110,55 @@ class TestFormatTimestamp:
 
 
 # ---------------------------------------------------------------------------
+# make_session_dir
+# ---------------------------------------------------------------------------
+
+
+class TestMakeSessionDir:
+    def test_creates_directory(self, tmp_path: Path) -> None:
+        ts = datetime(2025, 6, 1, 12, 0, 0)
+        session_dir = make_session_dir(tmp_path, "NVIDIA H200", ts)
+        assert session_dir.is_dir()
+        assert session_dir.name == "NVIDIA_H200_20250601_120000"
+
+    def test_parent_is_results_dir(self, tmp_path: Path) -> None:
+        ts = datetime(2025, 1, 1)
+        session_dir = make_session_dir(tmp_path, "sku", ts)
+        assert session_dir.parent == tmp_path
+
+    def test_idempotent(self, tmp_path: Path) -> None:
+        ts = datetime(2025, 6, 1, 12, 0, 0)
+        d1 = make_session_dir(tmp_path, "sku", ts)
+        d2 = make_session_dir(tmp_path, "sku", ts)
+        assert d1 == d2
+
+
+# ---------------------------------------------------------------------------
 # make_run_dir
 # ---------------------------------------------------------------------------
 
 
 class TestMakeRunDir:
     def test_creates_directory_structure(self, tmp_path: Path) -> None:
-        ts = datetime(2025, 6, 1, 12, 0, 0)
-        run_dir = make_run_dir(tmp_path, "gemm_cublas_lt", "NVIDIA H200", ts)
-        assert run_dir.name == "gemm_cublas_lt_NVIDIA_H200_20250601_120000"
+        session_dir = tmp_path / "session"
+        session_dir.mkdir()
+        run_dir = make_run_dir(session_dir, "gemm_cublas_lt")
+        assert run_dir.name == "gemm_cublas_lt"
         assert (run_dir / "raw").is_dir()
         assert (run_dir / "processed").is_dir()
 
     def test_idempotent(self, tmp_path: Path) -> None:
-        ts = datetime(2025, 6, 1, 12, 0, 0)
-        d1 = make_run_dir(tmp_path, "fio", "sku", ts)
-        d2 = make_run_dir(tmp_path, "fio", "sku", ts)
+        session_dir = tmp_path / "session"
+        session_dir.mkdir()
+        d1 = make_run_dir(session_dir, "fio")
+        d2 = make_run_dir(session_dir, "fio")
         assert d1 == d2
 
-    def test_parent_is_results_dir(self, tmp_path: Path) -> None:
-        ts = datetime(2025, 1, 1)
-        run_dir = make_run_dir(tmp_path, "nccl_bandwidth", "H100", ts)
-        assert run_dir.parent == tmp_path
+    def test_parent_is_session_dir(self, tmp_path: Path) -> None:
+        session_dir = tmp_path / "session"
+        session_dir.mkdir()
+        run_dir = make_run_dir(session_dir, "nccl_bandwidth")
+        assert run_dir.parent == session_dir
 
 
 # ---------------------------------------------------------------------------
@@ -184,7 +212,7 @@ def _make_ctx(tmp_path: Path, benchmark: str = "test_bench") -> RunContext:
         platform="nvidia",
         version="abc123",
         timestamp=ts,
-        results_dir=tmp_path,
+        session_dir=tmp_path,
         run_dir=run_dir,
     )
 

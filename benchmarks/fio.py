@@ -4,6 +4,7 @@ import glob
 import logging
 import os
 import subprocess
+import tempfile
 
 from prettytable import PrettyTable
 
@@ -59,7 +60,10 @@ def _build_table(rows: list[tuple[str, str, str]]) -> PrettyTable:
 
 def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list[tuple[str, str, str]] | None:
     """Run FIO storage benchmarks, parse and report results."""
-    output_dir = os.path.join(work_dir, "Outputs")
+    if ctx is not None:
+        fio_dir = str(ctx.run_dir)
+    else:
+        fio_dir = tempfile.mkdtemp(prefix="fio_")
 
     logger.info("Running FIO Tests...")
     rows = []
@@ -69,7 +73,7 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
             f"--bs={bs}",
             "--ioengine=libaio",
             "--iodepth=255",
-            f"--directory={output_dir}",
+            f"--directory={fio_dir}",
             "--direct=1",
             "--runtime=300",
             "--numjobs=4",
@@ -94,14 +98,14 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
             bw = parse_fio_output(result.stdout.decode("utf-8"))
         rows.append((rw, bs, bw))
 
+    # Clean up fio test files
+    for path in glob.glob(os.path.join(fio_dir, "test*")):
+        os.remove(path)
+
     if ctx is not None:
         return rows
 
     table = _build_table(rows)
     print(table)
     tools.export_markdown("FIO Tests", "", table)
-
-    # Clean up test files
-    for path in glob.glob(os.path.join(output_dir, "test*")):
-        os.remove(path)
     return None

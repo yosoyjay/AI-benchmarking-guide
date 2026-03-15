@@ -19,14 +19,15 @@ from benchmarks.nvidia import multichase as Multichase
 from benchmarks.nvidia import nccl_bandwidth as NCCL
 from benchmarks.nvidia import nv_bandwidth as NV
 from infra import process, tools
-from infra.capture import RunContext, get_version, make_run_dir
+from infra.capture import RunContext, get_version, make_run_dir, make_session_dir
 
 logger = logging.getLogger(__name__)
 
 _PLATFORM = "nvidia"
 
 
-def get_system_specs(current: str, host_name: str) -> str:
+def _detect_gpu_name() -> str:
+    """Query nvidia-smi and return the GPU marketing name (e.g. 'NVIDIA H200')."""
     results = subprocess.run(
         ["nvidia-smi", "--query-gpu=gpu_name,vbios_version,driver_version,memory.total", "--format=csv"],
         stdout=subprocess.PIPE,
@@ -40,60 +41,76 @@ def get_system_specs(current: str, host_name: str) -> str:
         logger.error("nvidia-smi returned no GPU data")
         sys.exit(1)
     output = lines[1].split(",")
-    if not os.path.exists(os.path.join(current, "Outputs", f"{host_name}_summary.md")):
-        table = PrettyTable([" ", output[0]])
-        if len(output) > 1:
-            table.add_row(["VBIOS", output[1]])
-        if len(output) > 2:
-            table.add_row(["driver version", output[2]])
-        if len(output) > 3:
-            table.add_row(["GPU memory capacity", output[3]])
-
-        results = subprocess.run(
-            "nvcc --version | grep release", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        if results.returncode == 0 and results.stdout:
-            parts = results.stdout.decode("utf-8").split(",")
-            cuda_parts = parts[1].strip().split(" ") if len(parts) > 1 else []
-            cuda_version = cuda_parts[1] if len(cuda_parts) > 1 else "unknown"
-        else:
-            cuda_version = "unknown"
-        table.add_row(["CUDA version", cuda_version])
-
-        if output[0].strip() != "NVIDIA Graphics Device":
-            results = subprocess.run(
-                "lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-            if results.returncode == 0 and results.stdout:
-                parts = results.stdout.decode("utf-8").strip().split("\t")
-                ubuntu = parts[1] if len(parts) > 1 else "unknown"
-            else:
-                ubuntu = "unknown"
-            table.add_row(["ubuntu version", ubuntu])
-            results = subprocess.run(
-                "pip list | grep 'torch '", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-            if results.returncode == 0 and results.stdout:
-                parts = results.stdout.decode("utf-8").strip().split()
-                pyt = parts[-1] if parts else "unknown"
-            else:
-                pyt = "unknown"
-            table.add_row(["pytorch", pyt])
-        print(table)
-        tools.export_markdown(f"{output[0].strip()} Benchmarking Guide", "", table)
     return output[0].strip()
 
 
-def _make_ctx(benchmark: str, sku: str, results_dir: Path, version: str, timestamp: datetime) -> RunContext:
+def _write_system_specs(session_dir: Path, gpu_name: str) -> None:
+    """Write system specs summary.md into session_dir (only if it doesn't exist yet)."""
+    summary_path = session_dir / "summary.md"
+    if summary_path.exists():
+        return
+    results = subprocess.run(
+        ["nvidia-smi", "--query-gpu=gpu_name,vbios_version,driver_version,memory.total", "--format=csv"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if results.returncode != 0:
+        return
+    lines = results.stdout.decode("utf-8").split("\n")
+    if len(lines) < 2 or not lines[1].strip():
+        return
+    output = lines[1].split(",")
+
+    table = PrettyTable([" ", gpu_name])
+    if len(output) > 1:
+        table.add_row(["VBIOS", output[1]])
+    if len(output) > 2:
+        table.add_row(["driver version", output[2]])
+    if len(output) > 3:
+        table.add_row(["GPU memory capacity", output[3]])
+
+    results = subprocess.run(
+        "nvcc --version | grep release", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    if results.returncode == 0 and results.stdout:
+        parts = results.stdout.decode("utf-8").split(",")
+        cuda_parts = parts[1].strip().split(" ") if len(parts) > 1 else []
+        cuda_version = cuda_parts[1] if len(cuda_parts) > 1 else "unknown"
+    else:
+        cuda_version = "unknown"
+    table.add_row(["CUDA version", cuda_version])
+
+    if gpu_name != "NVIDIA Graphics Device":
+        results = subprocess.run(
+            "lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        if results.returncode == 0 and results.stdout:
+            parts = results.stdout.decode("utf-8").strip().split("\t")
+            ubuntu = parts[1] if len(parts) > 1 else "unknown"
+        else:
+            ubuntu = "unknown"
+        table.add_row(["ubuntu version", ubuntu])
+        results = subprocess.run("pip list | grep 'torch '", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if results.returncode == 0 and results.stdout:
+            parts = results.stdout.decode("utf-8").strip().split()
+            pyt = parts[-1] if parts else "unknown"
+        else:
+            pyt = "unknown"
+        table.add_row(["pytorch", pyt])
+    print(table)
+    tools.export_markdown(f"{gpu_name} Benchmarking Guide", "", table)
+
+
+def _make_ctx(benchmark: str, sku: str, session_dir: Path, version: str, timestamp: datetime) -> RunContext:
     """Create a RunContext for a single benchmark."""
-    run_dir = make_run_dir(results_dir, benchmark, sku, timestamp)
+    run_dir = make_run_dir(session_dir, benchmark)
     return RunContext(
         benchmark=benchmark,
         sku=sku,
         platform=_PLATFORM,
         version=version,
         timestamp=timestamp,
-        results_dir=results_dir,
+        session_dir=session_dir,
         run_dir=run_dir,
     )
 
@@ -205,18 +222,22 @@ def main() -> None:
     args = parser.parse_args()
 
     current = os.getcwd()
-    host_name = tools.get_hostname()
-    tools.create_dir("Outputs")
-    sku_name = get_system_specs(current, host_name)
+    sku_name = _detect_gpu_name()
 
     # Structured output pipeline
     version = get_version()
     results_dir = Path(current) / "results"
     results_dir.mkdir(exist_ok=True)
     timestamp = datetime.now()
+    session_dir = make_session_dir(results_dir, sku_name, timestamp)
+
+    tools.set_log_path(str(session_dir / "log.txt"))
+    tools.set_summary_path(str(session_dir / "summary.md"))
+
+    _write_system_specs(session_dir, sku_name)
 
     def _ctx(benchmark):
-        return _make_ctx(benchmark, sku_name, results_dir, version, timestamp)
+        return _make_ctx(benchmark, sku_name, session_dir, version, timestamp)
 
     dispatch = {
         "gemm": lambda: run_CublasLt(sku_name, ctx=_ctx("gemm_cublas_lt")),
