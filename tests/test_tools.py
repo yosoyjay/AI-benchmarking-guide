@@ -1,10 +1,11 @@
-"""Tests for BabelStream helpers in infra/tools.py."""
+"""Tests for BabelStream helpers and config loading in infra/tools.py."""
 
+import json
 import logging
 
 import pytest
 
-from infra.tools import BABELSTREAM_OPS, parse_babelstream_output, summarize_babelstream
+from infra.tools import BABELSTREAM_OPS, load_benchmark_config, parse_babelstream_output, summarize_babelstream
 
 # Realistic BabelStream output (hip-stream / cuda-stream)
 SAMPLE_BABELSTREAM_OUTPUT = """\
@@ -145,3 +146,34 @@ class TestSummarizeBabelstream:
         assert table is not None
         # Only 1 good run, so min == max == mean
         assert len(table.rows) == 5
+
+
+# ---------------------------------------------------------------------------
+# load_benchmark_config + validation
+# ---------------------------------------------------------------------------
+
+
+class TestLoadBenchmarkConfig:
+    def test_missing_section_raises_key_error(self, tmp_path) -> None:
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"Other": {}}))
+        with pytest.raises(KeyError, match="GEMMCublasLt"):
+            load_benchmark_config(str(cfg), "GEMMCublasLt")
+
+    def test_valid_section_returns_dict(self, tmp_path) -> None:
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"GEMMCublasLt": {"datatype": "fp8e4m3"}}))
+        section = load_benchmark_config(str(cfg), "GEMMCublasLt")
+        assert section["datatype"] == "fp8e4m3"
+
+    def test_missing_required_key_raises_value_error(self, tmp_path) -> None:
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"GEMMCublasLt": {"other": 1}}))
+        with pytest.raises(ValueError, match="datatype"):
+            load_benchmark_config(str(cfg), "GEMMCublasLt")
+
+    def test_unknown_section_skips_validation(self, tmp_path) -> None:
+        cfg = tmp_path / "config.json"
+        cfg.write_text(json.dumps({"Custom": {"anything": "works"}}))
+        section = load_benchmark_config(str(cfg), "Custom")
+        assert section["anything"] == "works"

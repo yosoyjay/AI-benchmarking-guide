@@ -52,13 +52,37 @@ def run_cmd(
 
 
 def load_benchmark_config(path: str, section_name: str) -> dict[str, Any]:
-    """Load a JSON config file and return the section for a benchmark."""
+    """Load a JSON config file and return the section for a benchmark.
+
+    Raises ``KeyError`` if the section is missing and ``ValueError`` if
+    required keys within the section are absent.
+    """
     with open(path) as f:
         data = json.load(f)
     try:
-        return data[section_name]
+        section = data[section_name]
     except KeyError:
         raise KeyError(f"'{section_name}' section not found in {path}")
+    _validate_config_section(section_name, section)
+    return section
+
+
+_REQUIRED_KEYS: dict[str, list[str]] = {
+    "HBMBandwidth": ["inputs"],
+    "CPUStream": ["inputs"],
+    "GEMMCublasLt": ["datatype"],
+    "LLMBenchmark": ["models"],
+}
+
+
+def _validate_config_section(section_name: str, section: dict[str, Any]) -> None:
+    """Raise ValueError if required keys are missing from a config section."""
+    required = _REQUIRED_KEYS.get(section_name)
+    if required is None:
+        return
+    missing = [k for k in required if k not in section]
+    if missing:
+        raise ValueError(f"Config section '{section_name}' is missing required keys: {missing}")
 
 
 def create_dir(name: str) -> str:
