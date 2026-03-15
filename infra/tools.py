@@ -1,8 +1,9 @@
-import os
 import datetime
-import logging
-import subprocess
 import json
+import logging
+import os
+import subprocess
+import warnings
 
 logger = logging.getLogger(__name__)
 
@@ -10,11 +11,17 @@ _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _LOG_PATH = os.path.join(_PROJECT_ROOT, "Outputs", "log.txt")
 curr = _PROJECT_ROOT
 
+
 def run_cmd(cmd, *, shell=False, env=None, cwd=None, **kwargs):
     """Run a command, log output, and return the CompletedProcess."""
     result = subprocess.run(
-        cmd, shell=shell, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        env=env, cwd=cwd, **kwargs,
+        cmd,
+        shell=shell,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        cwd=cwd,
+        **kwargs,
     )
     write_log(check_error(result))
     return result
@@ -36,12 +43,14 @@ def create_dir(name: str):
     os.makedirs(outdir, exist_ok=True)
     return outdir
 
+
 def write_log(message: str, filename: str = _LOG_PATH):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}]\n {message}\n"
 
     with open(filename, "a") as file:
         file.write(log_entry)
+
 
 def check_error(results):
     stdout = results.stdout.decode("utf-8") if results.stdout else ""
@@ -52,20 +61,25 @@ def check_error(results):
         return f"{stdout}\n[stderr]\n{stderr}"
     return stdout
 
+
 def get_os_version():
-    results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    results = subprocess.run(
+        "lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
     if results.returncode != 0:
         return "unknown"
-    parts = results.stdout.decode('utf-8').strip().split("\t")
+    parts = results.stdout.decode("utf-8").strip().split("\t")
     if len(parts) < 2:
         return "unknown"
     return f"Ubuntu {parts[1]}"
+
 
 def get_hostname():
     results = subprocess.run(["hostname"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if results.returncode != 0:
         return ""
     return results.stdout.decode("utf-8").strip()
+
 
 def prettytable_to_markdown(table):
     if table is None:
@@ -75,7 +89,13 @@ def prettytable_to_markdown(table):
     rows = [f"| {' | '.join(str(cell) for cell in row)} |" for row in table.rows]
     return "\n".join([header, separator] + rows)
 
-def export_markdown(title, description, table = None):
+
+def export_markdown(title, description, table=None):
+    warnings.warn(
+        "export_markdown is deprecated; use infra.process for structured CSV output",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     md_table = prettytable_to_markdown(table)
     filename = os.path.join(curr, "Outputs", f"{get_hostname()}_summary.md")
     with open(filename, "a") as file:
@@ -84,9 +104,10 @@ def export_markdown(title, description, table = None):
         file.write(f"{description}\n")
         file.write(md_table)
         file.write("\n\n")
+
+
 def create_bm_entry(bmName, appName, sku, result):
     entry_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
-    date = datetime.datetime.now().strftime("%Y-%m-%d")
     ubuntu = get_os_version()
     return {
         "jobId": entry_id,
@@ -105,23 +126,20 @@ def create_bm_entry(bmName, appName, sku, result):
         "runCategory": "best",
         "Run Date": "",
         "notes": "",
-        "appVersion": "string"
+        "appVersion": "string",
     }
+
 
 def post_benchmark_entry(entry, url):
     json_data = json.dumps(entry)
-    curl_command = [
-        "curl",
-        "-X", "POST",
-        url,
-        "-H", "Content-Type: application/json",
-        "-d", json_data
-    ]
+    curl_command = ["curl", "-X", "POST", url, "-H", "Content-Type: application/json", "-d", json_data]
 
     result = subprocess.run(curl_command, capture_output=True, text=True)
     return result.stdout, result.stderr
 
+
 BABELSTREAM_OPS = ("Copy", "Mul", "Add", "Triad", "Dot")
+
 
 def parse_babelstream_output(raw_output):
     results = []
@@ -137,7 +155,13 @@ def summarize_babelstream(buffer, *, divisor, units, title, description):
 
     Returns the table, or None if no valid data was collected.
     """
+    warnings.warn(
+        "summarize_babelstream is deprecated; use infra.process for structured CSV output",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     import statistics
+
     from prettytable import PrettyTable
 
     ops = {name: [] for name in BABELSTREAM_OPS}
