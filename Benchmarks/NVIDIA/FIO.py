@@ -29,9 +29,13 @@ class FIO:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            res = results.stdout.decode('utf-8').split()[2].strip(",()")
+            if results.returncode != 0:
+                print(f"Warning: fio failed for {test[0]} bs={test[1]}: returncode={results.returncode}")
+                res = "error"
+            else:
+                tokens = results.stdout.decode('utf-8').split()
+                res = tokens[2].strip(",()") if len(tokens) >= 3 else "error"
             table.add_row([test[0], test[1], res])
-            res = test[0] + " BS=" + test[1] + ": " + res
         print(table)
         tools.export_markdown("FIO Tests", "", table)
            
