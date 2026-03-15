@@ -4,6 +4,9 @@ import logging
 import os
 import subprocess
 import warnings
+from typing import Any
+
+from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +15,14 @@ _LOG_PATH = os.path.join(_PROJECT_ROOT, "Outputs", "log.txt")
 curr = _PROJECT_ROOT
 
 
-def run_cmd(cmd, *, shell=False, env=None, cwd=None, **kwargs):
+def run_cmd(
+    cmd: list[str] | str,
+    *,
+    shell: bool = False,
+    env: dict[str, str] | None = None,
+    cwd: str | None = None,
+    **kwargs: Any,
+) -> subprocess.CompletedProcess[bytes]:
     """Run a command, log output, and return the CompletedProcess."""
     result = subprocess.run(
         cmd,
@@ -27,7 +37,7 @@ def run_cmd(cmd, *, shell=False, env=None, cwd=None, **kwargs):
     return result
 
 
-def load_benchmark_config(path, section_name):
+def load_benchmark_config(path: str, section_name: str) -> dict[str, Any]:
     """Load a JSON config file and return the section for a benchmark."""
     with open(path) as f:
         data = json.load(f)
@@ -37,14 +47,14 @@ def load_benchmark_config(path, section_name):
         raise KeyError(f"'{section_name}' section not found in {path}")
 
 
-def create_dir(name: str):
+def create_dir(name: str) -> str:
     current = os.getcwd()
     outdir = os.path.join(str(current), name)
     os.makedirs(outdir, exist_ok=True)
     return outdir
 
 
-def write_log(message: str, filename: str = _LOG_PATH):
+def write_log(message: str, filename: str = _LOG_PATH) -> None:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}]\n {message}\n"
 
@@ -52,7 +62,7 @@ def write_log(message: str, filename: str = _LOG_PATH):
         file.write(log_entry)
 
 
-def check_error(results):
+def check_error(results: subprocess.CompletedProcess[bytes]) -> str:
     stdout = results.stdout.decode("utf-8") if results.stdout else ""
     stderr = results.stderr.decode("utf-8") if results.stderr else ""
     if results.returncode != 0:
@@ -62,7 +72,7 @@ def check_error(results):
     return stdout
 
 
-def get_os_version():
+def get_os_version() -> str:
     results = subprocess.run(
         "lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
@@ -74,14 +84,14 @@ def get_os_version():
     return f"Ubuntu {parts[1]}"
 
 
-def get_hostname():
+def get_hostname() -> str:
     results = subprocess.run(["hostname"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if results.returncode != 0:
         return ""
     return results.stdout.decode("utf-8").strip()
 
 
-def prettytable_to_markdown(table):
+def prettytable_to_markdown(table: PrettyTable | None) -> str:
     if table is None:
         return ""
     header = f"| {' | '.join(table.field_names)} |"
@@ -90,7 +100,7 @@ def prettytable_to_markdown(table):
     return "\n".join([header, separator] + rows)
 
 
-def export_markdown(title, description, table=None):
+def export_markdown(title: str | None, description: str, table: PrettyTable | None = None) -> None:
     warnings.warn(
         "export_markdown is deprecated; use infra.process for structured CSV output",
         DeprecationWarning,
@@ -106,7 +116,7 @@ def export_markdown(title, description, table=None):
         file.write("\n\n")
 
 
-def create_bm_entry(bmName, appName, sku, result):
+def create_bm_entry(bmName: str, appName: str, sku: str, result: str) -> dict[str, str]:
     entry_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
     ubuntu = get_os_version()
     return {
@@ -130,7 +140,7 @@ def create_bm_entry(bmName, appName, sku, result):
     }
 
 
-def post_benchmark_entry(entry, url):
+def post_benchmark_entry(entry: dict[str, str], url: str) -> tuple[str, str]:
     json_data = json.dumps(entry)
     curl_command = ["curl", "-X", "POST", url, "-H", "Content-Type: application/json", "-d", json_data]
 
@@ -141,7 +151,7 @@ def post_benchmark_entry(entry, url):
 BABELSTREAM_OPS = ("Copy", "Mul", "Add", "Triad", "Dot")
 
 
-def parse_babelstream_output(raw_output):
+def parse_babelstream_output(raw_output: str) -> list[list[str]]:
     results = []
     for line in raw_output.strip().split("\n"):
         tokens = line.split()
@@ -150,7 +160,9 @@ def parse_babelstream_output(raw_output):
     return results
 
 
-def summarize_babelstream(buffer, *, divisor, units, title, description):
+def summarize_babelstream(
+    buffer: list[list[list[str]]], *, divisor: float, units: str, title: str, description: str
+) -> PrettyTable | None:
     """Build a PrettyTable from BabelStream run buffers.
 
     Returns the table, or None if no valid data was collected.
@@ -161,8 +173,6 @@ def summarize_babelstream(buffer, *, divisor, units, title, description):
         stacklevel=2,
     )
     import statistics
-
-    from prettytable import PrettyTable
 
     ops = {name: [] for name in BABELSTREAM_OPS}
     for log in buffer:
