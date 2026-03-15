@@ -1,7 +1,7 @@
 import logging
 import os
 from prettytable import PrettyTable
-from Infra import tools
+from infra import tools
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class TransferBench:
 
     def run(self):
         logger.info("Running TransferBench...")
-        run_cmd = f'sudo "{self.dir_path}/TransferBench/build/TransferBench" "{self.dir_path}/Benchmarks/AMD/transferbench.cfg" | grep -v \'=\' | grep \'sum\''
+        run_cmd = f'sudo "{self.dir_path}/TransferBench/build/TransferBench" "{self.dir_path}/benchmarks/amd/transferbench.cfg" | grep -v \'=\' | grep \'sum\''
         results = tools.run_cmd(run_cmd, shell=True)
         table = PrettyTable(["Test", "Result"])
         if results.returncode != 0:

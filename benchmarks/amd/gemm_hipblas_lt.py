@@ -1,6 +1,6 @@
 import logging
 import os
-from Infra import tools
+from infra import tools
 from prettytable import PrettyTable
 import docker
 
@@ -70,7 +70,7 @@ class GEMMHipBLAS:
 
         try:
             for m, n, k in zip(m_dims, n_dims, k_dims):
-                hipblas_cmd = f'cd {self.dir_path}/Benchmarks/AMD && ./hipBLAS_runner.sh {m} {n} {k}'
+                hipblas_cmd = f'cd {self.dir_path}/benchmarks/amd && ./hipBLAS_runner.sh {m} {n} {k}'
                 results = self.container.exec_run(f'/bin/sh -c "{hipblas_cmd}"')
                 tools.write_log(results.output.decode('utf-8'))
 

@@ -4,7 +4,7 @@ import re
 import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
-from Infra import tools
+from infra import tools
 from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ class LLAMA3Pretraining:
         self.machine_name = machine_name
         self.config = tools.load_benchmark_config(config_path, self.name)
         self.mount_path = self.config.get("mount_path", ".")
-        self.training_script = self.config.get("training_script", "Training/LLAMA3Recipe.py")
+        self.training_script = self.config.get("training_script", "benchmarks/nvidia/llama3_recipe.py")
         self.container = self.config.get("docker_image", _DEFAULT_NEMO_IMAGE)
         self.model_size = model_size
 

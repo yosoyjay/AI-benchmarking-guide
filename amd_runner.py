@@ -3,14 +3,14 @@ import logging
 import os
 import sys
 import subprocess
-from Benchmarks.AMD import RCCLBandwidth as RCCL
-from Benchmarks.AMD import FlashAttention as FA
-from Benchmarks.AMD import HBMBandwidth as HBM
-from Benchmarks.AMD import TransferBench as TB
-from Benchmarks.AMD import GEMMHipblasLt as GEMM
-from Benchmarks import FIO
-from Infra import tools
-from Benchmarks.AMD import LLMBenchmark as llmb
+from benchmarks.amd import rccl_bandwidth as RCCL
+from benchmarks.amd import flash_attention as FA
+from benchmarks.amd import hbm_bandwidth as HBM
+from benchmarks.amd import transfer_bench as TB
+from benchmarks.amd import gemm_hipblas_lt as GEMM
+from benchmarks import fio as FIO
+from infra import tools
+from benchmarks.amd import llm_benchmark as llmb
 
 logger = logging.getLogger(__name__)
 

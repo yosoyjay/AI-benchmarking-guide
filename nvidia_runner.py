@@ -4,17 +4,17 @@ import os
 import sys
 import subprocess
 
-from Benchmarks.NVIDIA import GEMMCublasLt as gemm
-from Benchmarks.NVIDIA import HBMBandwidth as HBM
-from Benchmarks.NVIDIA import NVBandwidth as NV
-from Benchmarks.NVIDIA import NCCLBandwidth as NCCL
-from Benchmarks.NVIDIA import FlashAttention as FA
-from Benchmarks import FIO
-from Benchmarks.NVIDIA import CPUStream as CPU
-from Benchmarks.NVIDIA import Multichase as Multichase
-from Benchmarks.NVIDIA import LLMBenchmark as llmb
-from Benchmarks.NVIDIA import LLAMA3Run as llama3pre
-from Infra import tools
+from benchmarks.nvidia import gemm_cublas_lt as gemm
+from benchmarks.nvidia import hbm_bandwidth as HBM
+from benchmarks.nvidia import nv_bandwidth as NV
+from benchmarks.nvidia import nccl_bandwidth as NCCL
+from benchmarks.nvidia import flash_attention as FA
+from benchmarks import fio as FIO
+from benchmarks.nvidia import cpu_stream as CPU
+from benchmarks.nvidia import multichase as Multichase
+from benchmarks.nvidia import llm_benchmark as llmb
+from benchmarks.nvidia import llama3_run as llama3pre
+from infra import tools
 from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)

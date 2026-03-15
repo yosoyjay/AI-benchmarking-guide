@@ -1,7 +1,7 @@
 import logging
 import subprocess
 import os
-from Infra import tools
+from infra import tools
 from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)

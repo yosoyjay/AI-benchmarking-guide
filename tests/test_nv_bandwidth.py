@@ -1,5 +1,5 @@
 import pytest
-from Benchmarks.NVIDIA.NVBandwidth import NVBandwidth
+from benchmarks.nvidia.nv_bandwidth import NVBandwidth
 
 SAMPLE_OUTPUT = """\
 nvbandwidth Version: 0.5
@@ -83,7 +83,7 @@ class TestFormatOutput:
         nv = NVBandwidth.__new__(NVBandwidth)
         nv.name = "NVBandwidth"
         nv.machine_name = "test"
-        import Infra.tools as tools_mod
+        import infra.tools as tools_mod
         orig = tools_mod.export_markdown
         tools_mod.export_markdown = lambda *a, **kw: None
         try:
@@ -97,7 +97,7 @@ class TestFormatOutput:
         nv = NVBandwidth.__new__(NVBandwidth)
         nv.name = "NVBandwidth"
         nv.machine_name = "test"
-        import Infra.tools as tools_mod
+        import infra.tools as tools_mod
         orig = tools_mod.export_markdown
         tools_mod.export_markdown = lambda *a, **kw: None
         try:

@@ -83,7 +83,7 @@
     
     "LLAMA3Pretraining": {
         "mount_path": ".",
-        "training_script": "Benchmarks/NVIDIA/LLAMA3Recipe.py",
+        "training_script": "benchmarks/nvidia/llama3_recipe.py",
         "docker_image": "nvcr.io/nvidia/nemo:25.04",
         "model": {
             "H200": {

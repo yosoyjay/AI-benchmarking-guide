@@ -1,6 +1,6 @@
 import logging
 import os
-from Infra import tools
+from infra import tools
 from prettytable import PrettyTable
 from huggingface_hub import snapshot_download
 
