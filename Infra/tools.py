@@ -2,8 +2,9 @@ import os
 import datetime
 import subprocess
 import json
-pwd = os.getcwd() + "/Outputs/log.txt"
-curr = os.getcwd()
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+pwd = _PROJECT_ROOT + "/Outputs/log.txt"
+curr = _PROJECT_ROOT
 
 def create_dir(name: str):
     current = os.getcwd()
@@ -34,7 +35,7 @@ def get_os_version():
     parts = results.stdout.decode('utf-8').strip().split("\t")
     if len(parts) < 2:
         return "unknown"
-    return "Ubuntu" + parts[1]
+    return "Ubuntu " + parts[1]
 
 def get_hostname():
     results = subprocess.run(["hostname"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
