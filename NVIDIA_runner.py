@@ -129,82 +129,111 @@ for arg in sys.argv[1:]:
 
 if ("gemm" in arguments):
     match = True
-    run_CublasLt()
+    try:
+        run_CublasLt()
+    except Exception as e:
+        print(f"Warning: CublasLt benchmark failed: {e}")
     os.chdir(current)
 
 if ("nccl" in arguments):
     match = True
-    run_NCCLBandwidth()
+    try:
+        run_NCCLBandwidth()
+    except Exception as e:
+        print(f"Warning: NCCLBandwidth benchmark failed: {e}")
     os.chdir(current)
 
 if ("hbm" in arguments):
     match = True
-    run_HBMBandwidth()
+    try:
+        run_HBMBandwidth()
+    except Exception as e:
+        print(f"Warning: HBMBandwidth benchmark failed: {e}")
     os.chdir(current)
 
 if ("nv" in arguments):
     match = True
-    run_NVBandwidth()
+    try:
+        run_NVBandwidth()
+    except Exception as e:
+        print(f"Warning: NVBandwidth benchmark failed: {e}")
     os.chdir(current)
 
 if ("fa"  in arguments):
     match = True
-    run_FlashAttention()
+    try:
+        run_FlashAttention()
+    except Exception as e:
+        print(f"Warning: FlashAttention benchmark failed: {e}")
     os.chdir(current)
 
 if ("multichase" in arguments):
     match = True
-    run_Multichase()
+    try:
+        run_Multichase()
+    except Exception as e:
+        print(f"Warning: Multichase benchmark failed: {e}")
     os.chdir(current)
 
 if ("cpustream" in arguments):
     match = True
-    run_CPUStream()
+    try:
+        run_CPUStream()
+    except Exception as e:
+        print(f"Warning: CPUStream benchmark failed: {e}")
     os.chdir(current)
 
 if ("fio" in arguments):
     match = True
-    run_FIO()
+    try:
+        run_FIO()
+    except Exception as e:
+        print(f"Warning: FIO benchmark failed: {e}")
     os.chdir(current)
 
 if ("llm" in arguments):
     match = True
-    run_LLMBenchmark()
+    try:
+        run_LLMBenchmark()
+    except Exception as e:
+        print(f"Warning: LLMBenchmark failed: {e}")
     os.chdir(current)
 
 if ("llama_8b_pretrain" in arguments):
     match = True
-    run_LLAMA3Pretrain("8b")
+    try:
+        run_LLAMA3Pretrain("8b")
+    except Exception as e:
+        print(f"Warning: LLAMA3 8b Pretrain failed: {e}")
     os.chdir(current)
 
 if ("llama_3b_pretrain" in arguments):
     match = True
-    run_LLAMA3Pretrain("3b")
+    try:
+        run_LLAMA3Pretrain("3b")
+    except Exception as e:
+        print(f"Warning: LLAMA3 3b Pretrain failed: {e}")
     os.chdir(current)
 
 if ("all" in arguments):
     match = True
-    run_CublasLt()
-    os.chdir(current)
-    run_NCCLBandwidth()
-    os.chdir(current)
-    run_Multichase()
-    os.chdir(current)
-    run_CPUStream()
-    os.chdir(current)
-    run_HBMBandwidth()
-    os.chdir(current)
-    run_NVBandwidth()
-    os.chdir(current)
-    run_FIO()
-    os.chdir(current)
-    run_FlashAttention()
-    os.chdir(current)
-    run_LLMBenchmark()
-    os.chdir(current)
-    run_LLAMA3Pretrain("8b")
-    os.chdir(current)
-    run_LLAMA3Pretrain("3b")
-    os.chdir(current)
+    for _name, _fn in [
+        ("CublasLt", run_CublasLt),
+        ("NCCLBandwidth", lambda: run_NCCLBandwidth()),
+        ("Multichase", run_Multichase),
+        ("CPUStream", run_CPUStream),
+        ("HBMBandwidth", run_HBMBandwidth),
+        ("NVBandwidth", run_NVBandwidth),
+        ("FIO", run_FIO),
+        ("FlashAttention", run_FlashAttention),
+        ("LLMBenchmark", run_LLMBenchmark),
+        ("LLAMA3 8b Pretrain", lambda: run_LLAMA3Pretrain("8b")),
+        ("LLAMA3 3b Pretrain", lambda: run_LLAMA3Pretrain("3b")),
+    ]:
+        try:
+            _fn()
+        except Exception as e:
+            print(f"Warning: {_name} benchmark failed: {e}")
+        os.chdir(current)
 if not match:
     print("Usage: python3 NVIDIA_runner.py [arg]\n   or: python3 NVIDIA_runner.py [arg1] [arg2] ... to run more than one test e.g python3 NVIDIA_runner.py hbm nccl\nArguments are as follows, and are case insensitive:\nAll tests:  all\nCuBLASLt GEMM:  gemm\nNCCL Bandwidth: nccl\nHBMBandwidth:   hbm\nNV Bandwidth:   nv\nFIO Tests:   fio\nFlash Attention: fa\n   LLM Inference Workloads: llm\nCPU Stream: cpustream\nMultichase:  multichase\nLLAMA 8B Pretrain:  llama_8b_pretrain\nLLAMA 3B Pretrain: llama_3b_pretrain")
