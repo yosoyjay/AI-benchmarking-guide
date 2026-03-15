@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import sys
@@ -18,11 +19,8 @@ from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
-host_name = tools.get_hostname()
-current = os.getcwd()
-tools.create_dir("Outputs")
 
-def get_system_specs():
+def get_system_specs(current, host_name):
     results = subprocess.run(["nvidia-smi", "--query-gpu=gpu_name,vbios_version,driver_version,memory.total", "--format=csv"], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     if results.returncode != 0:
         logger.error("nvidia-smi failed. Is an NVIDIA GPU present and driver installed?")
@@ -69,12 +67,13 @@ def get_system_specs():
         tools.export_markdown(output[0].strip() + " Benchmarking Guide", "", table)
     return output[0].strip()
 
-def run_CublasLt():
-    test = gemm.GEMMCublastLt("config.json",sku_name)
+
+def run_CublasLt(sku_name):
+    test = gemm.GEMMCublastLt("config.json", sku_name)
     test.build()
     test.run_model_sizes()
 
-def run_HBMBandwidth():
+def run_HBMBandwidth(sku_name):
     if "GB200" in sku_name:
         logger.warning("HBM bandwidth Test not supported on GB200 yet")
         return
@@ -82,162 +81,105 @@ def run_HBMBandwidth():
     test.build()
     test.run()
 
-def run_NVBandwidth():
+def run_NVBandwidth(sku_name):
     test = NV.NVBandwidth("config.json", sku_name)
     test.build()
     test.run()
 
-def run_NCCLBandwidth():
+def run_NCCLBandwidth(sku_name):
     test = NCCL.NCCLBandwidth("config.json", sku_name)
     test.build()
     test.run()
 
-def run_FlashAttention():
+def run_FlashAttention(sku_name):
     test = FA.FlashAttention("config.json", sku_name)
     test.run()
 
-def run_Multichase():
+def run_Multichase(sku_name):
     test = Multichase.Multichase("config.json", sku_name)
     test.build()
     test.run()
 
-def run_CPUStream():
+def run_CPUStream(sku_name):
     test = CPU.CPUStream("config.json", sku_name)
     test.build()
     test.run()
 
-def run_FIO():
+def run_FIO(sku_name):
     test = FIO.FIO("config.json", sku_name)
     test.run()
 
-def run_LLMBenchmark():
+def run_LLMBenchmark(sku_name, current):
     test = llmb.LLMBenchmark("config.json", current, sku_name)
     test.install_requirements()
     test.prepare_datasets()
     test.download_models()
     test.run_benchmark()
 
-def run_LLAMA3Pretrain(model_size="8b"):
+def run_LLAMA3Pretrain(sku_name, model_size="8b"):
     if "GB200" in sku_name or "H200" in sku_name:
         test = llama3pre.LLAMA3Pretraining("config.json", sku_name, model_size)
     else:
         logger.warning("LLAMA3 Pretraining not supported on %s yet", sku_name)
         return
-    test.run() 
+    test.run()
 
-sku_name = get_system_specs()
-arguments = []
-match = False
-for arg in sys.argv[1:]:
-    arguments.append(arg.lower())
 
-if ("gemm" in arguments):
-    match = True
-    try:
-        run_CublasLt()
-    except Exception as e:
-        logger.warning("CublasLt benchmark failed: %s", e)
-    os.chdir(current)
+BENCHMARKS = {
+    "gemm": "CublasLt",
+    "nccl": "NCCLBandwidth",
+    "hbm": "HBMBandwidth",
+    "nv": "NVBandwidth",
+    "fa": "FlashAttention",
+    "multichase": "Multichase",
+    "cpustream": "CPUStream",
+    "fio": "FIO",
+    "llm": "LLMBenchmark",
+    "llama_8b_pretrain": "LLAMA3 8b Pretrain",
+    "llama_3b_pretrain": "LLAMA3 3b Pretrain",
+}
 
-if ("nccl" in arguments):
-    match = True
-    try:
-        run_NCCLBandwidth()
-    except Exception as e:
-        logger.warning("NCCLBandwidth benchmark failed: %s", e)
-    os.chdir(current)
 
-if ("hbm" in arguments):
-    match = True
-    try:
-        run_HBMBandwidth()
-    except Exception as e:
-        logger.warning("HBMBandwidth benchmark failed: %s", e)
-    os.chdir(current)
+def main():
+    logging.basicConfig(level=logging.INFO)
 
-if ("nv" in arguments):
-    match = True
-    try:
-        run_NVBandwidth()
-    except Exception as e:
-        logger.warning("NVBandwidth benchmark failed: %s", e)
-    os.chdir(current)
+    parser = argparse.ArgumentParser(description="NVIDIA GPU Benchmark Suite")
+    parser.add_argument(
+        "benchmarks", nargs="+",
+        choices=[*BENCHMARKS, "all"],
+        type=str.lower,
+        help="Benchmarks to run",
+    )
+    args = parser.parse_args()
 
-if ("fa"  in arguments):
-    match = True
-    try:
-        run_FlashAttention()
-    except Exception as e:
-        logger.warning("FlashAttention benchmark failed: %s", e)
-    os.chdir(current)
+    current = os.getcwd()
+    host_name = tools.get_hostname()
+    tools.create_dir("Outputs")
+    sku_name = get_system_specs(current, host_name)
 
-if ("multichase" in arguments):
-    match = True
-    try:
-        run_Multichase()
-    except Exception as e:
-        logger.warning("Multichase benchmark failed: %s", e)
-    os.chdir(current)
+    dispatch = {
+        "gemm": lambda: run_CublasLt(sku_name),
+        "nccl": lambda: run_NCCLBandwidth(sku_name),
+        "hbm": lambda: run_HBMBandwidth(sku_name),
+        "nv": lambda: run_NVBandwidth(sku_name),
+        "fa": lambda: run_FlashAttention(sku_name),
+        "multichase": lambda: run_Multichase(sku_name),
+        "cpustream": lambda: run_CPUStream(sku_name),
+        "fio": lambda: run_FIO(sku_name),
+        "llm": lambda: run_LLMBenchmark(sku_name, current),
+        "llama_8b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "8b"),
+        "llama_3b_pretrain": lambda: run_LLAMA3Pretrain(sku_name, "3b"),
+    }
 
-if ("cpustream" in arguments):
-    match = True
-    try:
-        run_CPUStream()
-    except Exception as e:
-        logger.warning("CPUStream benchmark failed: %s", e)
-    os.chdir(current)
-
-if ("fio" in arguments):
-    match = True
-    try:
-        run_FIO()
-    except Exception as e:
-        logger.warning("FIO benchmark failed: %s", e)
-    os.chdir(current)
-
-if ("llm" in arguments):
-    match = True
-    try:
-        run_LLMBenchmark()
-    except Exception as e:
-        logger.warning("LLMBenchmark failed: %s", e)
-    os.chdir(current)
-
-if ("llama_8b_pretrain" in arguments):
-    match = True
-    try:
-        run_LLAMA3Pretrain("8b")
-    except Exception as e:
-        logger.warning("LLAMA3 8b Pretrain failed: %s", e)
-    os.chdir(current)
-
-if ("llama_3b_pretrain" in arguments):
-    match = True
-    try:
-        run_LLAMA3Pretrain("3b")
-    except Exception as e:
-        logger.warning("LLAMA3 3b Pretrain failed: %s", e)
-    os.chdir(current)
-
-if ("all" in arguments):
-    match = True
-    for _name, _fn in [
-        ("CublasLt", run_CublasLt),
-        ("NCCLBandwidth", run_NCCLBandwidth),
-        ("Multichase", run_Multichase),
-        ("CPUStream", run_CPUStream),
-        ("HBMBandwidth", run_HBMBandwidth),
-        ("NVBandwidth", run_NVBandwidth),
-        ("FIO", run_FIO),
-        ("FlashAttention", run_FlashAttention),
-        ("LLMBenchmark", run_LLMBenchmark),
-        ("LLAMA3 8b Pretrain", lambda: run_LLAMA3Pretrain("8b")),
-        ("LLAMA3 3b Pretrain", lambda: run_LLAMA3Pretrain("3b")),
-    ]:
+    selected = list(dispatch.keys()) if "all" in args.benchmarks else args.benchmarks
+    for key in selected:
+        name = BENCHMARKS[key]
         try:
-            _fn()
+            dispatch[key]()
         except Exception as e:
-            logger.warning("%s benchmark failed: %s", _name, e)
+            logger.warning("%s benchmark failed: %s", name, e)
         os.chdir(current)
-if not match:
-    print("Usage: python3 NVIDIA_runner.py [arg]\n   or: python3 NVIDIA_runner.py [arg1] [arg2] ... to run more than one test e.g python3 NVIDIA_runner.py hbm nccl\nArguments are as follows, and are case insensitive:\nAll tests:  all\nCuBLASLt GEMM:  gemm\nNCCL Bandwidth: nccl\nHBMBandwidth:   hbm\nNV Bandwidth:   nv\nFIO Tests:   fio\nFlash Attention: fa\n   LLM Inference Workloads: llm\nCPU Stream: cpustream\nMultichase:  multichase\nLLAMA 8B Pretrain:  llama_8b_pretrain\nLLAMA 3B Pretrain: llama_3b_pretrain")
+
+
+if __name__ == "__main__":
+    main()

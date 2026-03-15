@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 import sys
@@ -13,15 +14,13 @@ from Benchmarks.AMD import LLMBenchmark as llmb
 
 logger = logging.getLogger(__name__)
 
-current = os.getcwd()
-tools.create_dir("Outputs")
-
 _SKU_MAP = {
     "MI300X": "ND_MI300X_v5",
     "MI300": "ND_MI300X_v5",
     "MI250X": "ND_MI250X_v4",
     "MI250": "ND_MI250_v4",
 }
+
 
 def _detect_sku():
     try:
@@ -38,6 +37,7 @@ def _detect_sku():
         pass
     logger.warning("could not detect AMD GPU SKU, falling back to ND_MI300X_v5")
     return "ND_MI300X_v5"
+
 
 def get_system_specs():
     with open("Outputs/system_specs.txt", "w") as file:
@@ -81,120 +81,90 @@ def get_system_specs():
             file.write("")
     return _detect_sku()
 
-def run_TransferBench():
+
+def run_TransferBench(machine_name, current):
     test = TB.TransferBench("config.json", current, machine_name)
     test.build()
     test.run()
 
-def run_GEMMHipBLAS():
+def run_GEMMHipBLAS(machine_name, current):
     test = GEMM.GEMMHipBLAS("config.json", current, machine_name)
     test.create_container()
     test.build()
     test.run_model_sizes()
 
-def run_RCCLBandwidth():
+def run_RCCLBandwidth(machine_name, current):
     test = RCCL.RCCLBandwidth("config.json", current, machine_name)
     test.create_container()
     test.build()
     test.run()
 
-def run_FlashAttention():
+def run_FlashAttention(machine_name, current):
     test = FA.FlashAttention(current, machine_name)
     test.run()
     os.chdir(current)
 
-def run_FIO():
+def run_FIO(machine_name, current):
     test = FIO.FIO(current, machine_name)
     test.run()
 
-def run_HBMBandwidth():
+def run_HBMBandwidth(machine_name, current):
     test = HBM.HBMBandwidth("config.json", current, machine_name)
     test.build()
     test.run()
 
-def run_LLMBenchmark():
+def run_LLMBenchmark(machine_name, current):
     test = llmb.LLMBenchmark("config.json", current, machine_name)
     test.create_container()
     test.run_benchmark()
 
-machine_name = get_system_specs()
-arguments = []
-match = False
-for arg in sys.argv[1:]:
-    arguments.append(arg.lower())
 
-if ("gemm" in arguments):
-    match = True
-    try:
-        run_GEMMHipBLAS()
-    except Exception as e:
-        logger.warning("GEMMHipBLAS benchmark failed: %s", e)
-    os.chdir(current)
+BENCHMARKS = {
+    "gemm": "GEMMHipBLAS",
+    "rccl": "RCCLBandwidth",
+    "hbm": "HBMBandwidth",
+    "transfer": "TransferBench",
+    "fa": "FlashAttention",
+    "fio": "FIO",
+    "llm": "LLMBenchmark",
+}
 
-if ("rccl" in arguments):
-    match = True
-    try:
-        run_RCCLBandwidth()
-    except Exception as e:
-        logger.warning("RCCLBandwidth benchmark failed: %s", e)
-    os.chdir(current)
 
-if ("hbm" in arguments):
-    match = True
-    try:
-        run_HBMBandwidth()
-    except Exception as e:
-        logger.warning("HBMBandwidth benchmark failed: %s", e)
-    os.chdir(current)
+def main():
+    logging.basicConfig(level=logging.INFO)
 
-if ("transfer" in arguments):
-    match = True
-    try:
-        run_TransferBench()
-    except Exception as e:
-        logger.warning("TransferBench benchmark failed: %s", e)
-    os.chdir(current)
+    parser = argparse.ArgumentParser(description="AMD GPU Benchmark Suite")
+    parser.add_argument(
+        "benchmarks", nargs="+",
+        choices=[*BENCHMARKS, "all"],
+        type=str.lower,
+        help="Benchmarks to run",
+    )
+    args = parser.parse_args()
 
-if ("fa" in arguments):
-    match = True
-    try:
-        run_FlashAttention()
-    except Exception as e:
-        logger.warning("FlashAttention benchmark failed: %s", e)
-    os.chdir(current)
+    current = os.getcwd()
+    tools.create_dir("Outputs")
+    machine_name = get_system_specs()
 
-if ("fio" in arguments):
-    match = True
-    try:
-        run_FIO()
-    except Exception as e:
-        logger.warning("FIO benchmark failed: %s", e)
-    os.chdir(current)
+    dispatch = {
+        "gemm": lambda: run_GEMMHipBLAS(machine_name, current),
+        "rccl": lambda: run_RCCLBandwidth(machine_name, current),
+        "hbm": lambda: run_HBMBandwidth(machine_name, current),
+        "transfer": lambda: run_TransferBench(machine_name, current),
+        "fa": lambda: run_FlashAttention(machine_name, current),
+        "fio": lambda: run_FIO(machine_name, current),
+        "llm": lambda: run_LLMBenchmark(machine_name, current),
+    }
 
-if ("llm" in arguments):
-    match = True
-    try:
-        run_LLMBenchmark()
-    except Exception as e:
-        logger.warning("LLMBenchmark failed: %s", e)
-    os.chdir(current)
-
-if ("all" in arguments):
-    match = True
-    for _name, _fn in [
-        ("HBMBandwidth", run_HBMBandwidth),
-        ("TransferBench", run_TransferBench),
-        ("RCCLBandwidth", run_RCCLBandwidth),
-        ("FIO", run_FIO),
-        ("FlashAttention", run_FlashAttention),
-        ("LLMBenchmark", run_LLMBenchmark),
-        ("GEMMHipBLAS", run_GEMMHipBLAS),
-    ]:
+    selected = list(dispatch.keys()) if "all" in args.benchmarks else args.benchmarks
+    for key in selected:
+        name = BENCHMARKS[key]
         try:
-            _fn()
+            dispatch[key]()
         except Exception as e:
-            logger.warning("%s benchmark failed: %s", _name, e)
+            logger.warning("%s benchmark failed: %s", name, e)
         os.chdir(current)
-if not match:
-    print("Usage: python3 AMD_runner.py [arg]\n   or: python3 AMD_runner.py [arg1] [arg2] ... to run more than one test e.g python3 AMD_runner.py hbm nccl\nArguments are as follows, and are case insensitive:\nAll tests:  all\nROCBLAS GEMM:  gemm\nRCCL Bandwidth: rccl\nHBMBandwidth:   hbm\nTransferbench:   transfer\nFlash Attention: fa\nFIO Tests:   fio\nLLM Inference Workloads: llm")
-    
+
+
+if __name__ == "__main__":
+    main()
