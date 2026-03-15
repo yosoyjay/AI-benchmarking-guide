@@ -1,69 +1,117 @@
+"""NCCL Bandwidth benchmark (NVIDIA)."""
+
 import logging
 import os
-import subprocess
-from infra import tools
+
 from prettytable import PrettyTable
+
+from infra import tools
 
 logger = logging.getLogger(__name__)
 
 _NCCL_REPO = "https://github.com/NVIDIA/nccl.git"
 _NCCL_TESTS_REPO = "https://github.com/NVIDIA/nccl-tests.git"
 
-class NCCLBandwidth:
-    def __init__(self, path:str, machine: str):
-        self.name='NCCLBandwidth'
-        self.machine_name = machine
-        self.algo = "NVLS"
-        self.env = dict(os.environ)
 
-    def build(self):
-        current = os.getcwd()
-        path ='nccl'
-        isdir = os.path.isdir(path)
-        if not isdir:
-            logger.info("Building NCCL Library...")
-            results = subprocess.run(['git', 'clone', _NCCL_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            build_path = os.path.join(current, 'nccl')
-            results = tools.run_cmd('make -j src.build', shell=True, cwd=build_path)
+# ---------------------------------------------------------------------------
+# Pure helpers -- no side effects, fully testable
+# ---------------------------------------------------------------------------
 
-        nccl_home = os.path.join(current, "nccl", "build")
-        ld_path = f"{os.path.join(current, 'nccl', 'build', 'lib')}:{os.environ.get('LD_LIBRARY_PATH', '')}"
-        self.env = {**os.environ, 'NCCL_HOME': nccl_home, 'LD_LIBRARY_PATH': ld_path}
 
-        path ='nccl-tests'
-        isdir = os.path.isdir(path)
-        if not isdir:
-            logger.info("Building NCCL Test...")
-            results = subprocess.run(['git', 'clone', _NCCL_TESTS_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            build_path = os.path.join(current, 'nccl-tests')
-            results = tools.run_cmd(['make'], env=self.env, cwd=build_path)
-        self.build_dir = os.path.join(current, 'nccl-tests')
+def parse_nccl_output(text):
+    """Extract size and bandwidth from all_reduce_perf 13-column output.
 
-    def run(self):
-        num_gpus_result = subprocess.run("nvidia-smi --query-gpu=name --format=csv,noheader | wc -l", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if num_gpus_result.returncode != 0 or not num_gpus_result.stdout.decode('utf-8').strip():
-            logger.warning("nvidia-smi failed to detect GPU count, defaulting to 8")
-            num_gpus = "8"
-        else:
-            num_gpus = num_gpus_result.stdout.decode('utf-8').strip()
-        if num_gpus == '4':
-            self.algo = "Ring"
-        logger.info("Running NCCL AllReduce on %s GPUs", num_gpus)
+    Returns a list of dicts with keys: size, bandwidth.
+    """
+    rows = []
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) == 13:
+            rows.append({"size": fields[0], "bandwidth": fields[11]})
+    return rows
 
-        all_reduce_bin = os.path.join(self.build_dir, "build", "all_reduce_perf")
-        results = tools.run_cmd(f'NCCL_ALGO={self.algo} {all_reduce_bin} -b 8 -e 8G -f 2 -g {num_gpus} -n 40 | grep float', shell=True, env=self.env)
-        res = results.stdout.decode('utf-8').split('\n')
-        sizes = []
-        log = []
-        for line in res:
-            fields = line.split()
-            if len(fields) == 13:
-                sizes.append(fields[0])
-                log.append(fields[11])
 
-        table1 = PrettyTable()
-        runs = ["Message Size", f"Bandwidth ({self.algo})"]
-        table1.add_column(runs[0], sizes)
-        table1.add_column(runs[1], log)
-        print(table1)
-        tools.export_markdown("NCCL Bandwidth", f"The values (in GB/s) are the bus bandwidth values obtained from the NCCL AllReduce ({self.algo} algorithm) tests in-place operations, varying from 1KB to 8GB of data.", table1)
+def _build_table(rows, algo):
+    """Format parsed rows into a PrettyTable."""
+    table = PrettyTable()
+    table.add_column("Message Size", [r["size"] for r in rows])
+    table.add_column(f"Bandwidth ({algo})", [r["bandwidth"] for r in rows])
+    return table
+
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+
+def _get_gpu_count():
+    """Detect number of GPUs via nvidia-smi."""
+    result = tools.run_cmd(
+        ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+    )
+    if result.returncode != 0:
+        logger.warning("nvidia-smi failed to detect GPU count, defaulting to 8")
+        return 8
+    lines = [line for line in result.stdout.decode("utf-8").splitlines() if line.strip()]
+    return len(lines) if lines else 8
+
+
+def _build(work_dir, env):
+    """Clone and build NCCL and nccl-tests."""
+    nccl_dir = os.path.join(work_dir, "nccl")
+    if not os.path.isdir(nccl_dir):
+        logger.info("Building NCCL Library...")
+        tools.run_cmd(["git", "clone", _NCCL_REPO, "nccl"], cwd=work_dir)
+        tools.run_cmd(["make", "-j", "src.build"], cwd=nccl_dir)
+
+    nccl_home = os.path.join(nccl_dir, "build")
+    ld_path = f"{os.path.join(nccl_dir, 'build', 'lib')}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+    env = {**os.environ, "NCCL_HOME": nccl_home, "LD_LIBRARY_PATH": ld_path}
+
+    tests_dir = os.path.join(work_dir, "nccl-tests")
+    if not os.path.isdir(tests_dir):
+        logger.info("Building NCCL Test...")
+        tools.run_cmd(["git", "clone", _NCCL_TESTS_REPO, "nccl-tests"], cwd=work_dir)
+        tools.run_cmd(["make"], env=env, cwd=tests_dir)
+
+    return tests_dir, env
+
+
+def run(work_dir, machine_name):
+    """Clone, build, run NCCL all-reduce, parse and report results."""
+    tests_dir, env = _build(work_dir, None)
+
+    num_gpus = _get_gpu_count()
+    algo = "Ring" if num_gpus == 4 else "NVLS"
+    logger.info("Running NCCL AllReduce on %s GPUs", num_gpus)
+
+    all_reduce_bin = os.path.join(tests_dir, "build", "all_reduce_perf")
+    run_env = {**env, "NCCL_ALGO": algo}
+    result = tools.run_cmd(
+        [
+            all_reduce_bin,
+            "-b",
+            "8",
+            "-e",
+            "8G",
+            "-f",
+            "2",
+            "-g",
+            str(num_gpus),
+            "-n",
+            "40",
+        ],
+        env=run_env,
+    )
+    output = result.stdout.decode("utf-8")
+    # Filter to lines containing "float" (same as the old grep)
+    float_lines = "\n".join(line for line in output.splitlines() if "float" in line)
+    rows = parse_nccl_output(float_lines)
+
+    table = _build_table(rows, algo)
+    print(table)
+    tools.export_markdown(
+        "NCCL Bandwidth",
+        f"The values (in GB/s) are the bus bandwidth values obtained from the NCCL AllReduce ({algo} algorithm) tests in-place operations, varying from 1KB to 8GB of data.",
+        table,
+    )

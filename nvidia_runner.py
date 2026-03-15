@@ -99,9 +99,7 @@ def run_NVBandwidth(sku_name):
 
 
 def run_NCCLBandwidth(sku_name):
-    test = NCCL.NCCLBandwidth("config.json", sku_name)
-    test.build()
-    test.run()
+    NCCL.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_FlashAttention(sku_name):
