@@ -2,12 +2,15 @@ import logging
 import os
 import re
 import subprocess
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from prettytable import PrettyTable
 
 from infra import tools
+from infra.capture import RunContext
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +22,7 @@ _DEFAULT_NEMO_IMAGE = "nvcr.io/nvidia/nemo:25.04"
 # ---------------------------------------------------------------------------
 
 
-def parse_llama3_output(text):
+def parse_llama3_output(text: str) -> tuple[list[int], list[float], list[float]]:
     """Extract global_step, train_loss, train_time triples from log text.
 
     Returns ``(global_steps, train_losses, train_times)`` lists.
@@ -37,7 +40,12 @@ def parse_llama3_output(text):
     return global_steps, train_losses, train_times
 
 
-def compute_steady_state(arr, window_size=10, std_thresh=0.1, min_windows=3):
+def compute_steady_state(
+    arr: list[float] | npt.NDArray[np.floating[Any]],
+    window_size: int = 10,
+    std_thresh: float = 0.1,
+    min_windows: int = 3,
+) -> tuple[int | None, float | None]:
     """Detect steady-state in a numeric array.
 
     Returns ``(start_idx, steady_value)`` or ``(None, None)`` if not found.
@@ -60,7 +68,7 @@ def compute_steady_state(arr, window_size=10, std_thresh=0.1, min_windows=3):
 
 
 class LLAMA3Pretraining:
-    def __init__(self, config_path: str, machine_name: str, model_size: str = "8b"):
+    def __init__(self, config_path: str, machine_name: str, model_size: str = "8b") -> None:
         self.name = "LLAMA3Pretraining"
         self.machine_name = machine_name
         self.config = tools.load_benchmark_config(config_path, self.name)
@@ -69,7 +77,7 @@ class LLAMA3Pretraining:
         self.container = self.config.get("docker_image", _DEFAULT_NEMO_IMAGE)
         self.model_size = model_size
 
-    def plot_results(self, file_path: str = None):
+    def plot_results(self, file_path: str | None = None) -> tuple[float | None, float | None]:
         # extract values from the output file
         with open(file_path, "r", encoding="utf-8") as f:
             text = f.read()
@@ -125,7 +133,7 @@ class LLAMA3Pretraining:
 
         return time_ss, loss_ss
 
-    def run(self, ctx=None):
+    def run(self, ctx: RunContext | None = None) -> tuple[float | None, float | None] | None:
         log_path = os.path.join("Outputs", "llama3_docker_output.txt")
         tools.write_log(f"Pulling and launching NeMo container for {self.machine_name}.")  # write to log file
         logger.info(
