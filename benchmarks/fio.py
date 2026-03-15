@@ -106,3 +106,4 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
     # Clean up test files
     for path in glob.glob(os.path.join(output_dir, "test*")):
         os.remove(path)
+    return None

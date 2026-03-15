@@ -127,3 +127,4 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
         f"The values (in GB/s) are the bus bandwidth values obtained from the NCCL AllReduce ({algo} algorithm) tests in-place operations, varying from 1KB to 8GB of data.",
         table,
     )
+    return None

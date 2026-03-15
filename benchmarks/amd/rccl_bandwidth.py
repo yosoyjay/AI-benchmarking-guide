@@ -96,3 +96,4 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict
     table = _build_table(sizes, bandwidth_columns, _ALGOS)
     print(table)
     tools.export_markdown("RCCL Bandwidth", _DESCRIPTION, table)
+    return None

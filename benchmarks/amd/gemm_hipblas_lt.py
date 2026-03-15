@@ -120,3 +120,4 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
         f"The results shown below are with random initialization (best representation of real-life workloads) {_DATATYPE}, and {_WARMUP} warmup iterations.",
         table,
     )
+    return None

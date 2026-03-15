@@ -92,3 +92,4 @@ def run(
         title="HBM Bandwidth",
         description="HBM bandwidth Results",
     )
+    return None

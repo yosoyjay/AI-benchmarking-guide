@@ -89,3 +89,4 @@ def run(
 
     print(output)
     tools.export_markdown("Multichase", output, None)
+    return None

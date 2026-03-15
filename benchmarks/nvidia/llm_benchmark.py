@@ -263,3 +263,4 @@ def run(
 
     if ctx is not None:
         return rows
+    return None

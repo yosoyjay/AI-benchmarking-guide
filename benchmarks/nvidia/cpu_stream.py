@@ -93,3 +93,4 @@ def run(
         title="CPU STREAM",
         description="CPU STREAM Results",
     )
+    return None

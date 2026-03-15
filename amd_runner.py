@@ -124,21 +124,21 @@ def _make_ctx(benchmark: str, sku: str, results_dir: Path, version: str, timesta
 
 def run_TransferBench(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = TB.run(work_dir=current, machine_name=machine_name, ctx=ctx)
-    if ctx is not None:
+    if ctx is not None and parsed is not None:
         csv_rows = process.transfer_bench_to_csv(ctx, parsed)
         process.process_run("transfer_bench", ctx, csv_rows)
 
 
 def run_GEMMHipBLAS(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = GEMM.run(work_dir=current, machine_name=machine_name, ctx=ctx)
-    if ctx is not None:
+    if ctx is not None and parsed is not None:
         csv_rows = process.gemm_hipblas_lt_to_csv(ctx, parsed)
         process.process_run("gemm_hipblas_lt", ctx, csv_rows)
 
 
 def run_RCCLBandwidth(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     all_parsed = RCCL.run(work_dir=current, machine_name=machine_name, ctx=ctx)
-    if ctx is not None:
+    if ctx is not None and all_parsed is not None:
         csv_rows = []
         for algo, rows in all_parsed.items():
             csv_rows.extend(process.rccl_bandwidth_to_csv(ctx, rows, algo))
@@ -147,28 +147,28 @@ def run_RCCLBandwidth(machine_name: str, current: str, ctx: RunContext | None = 
 
 def run_FlashAttention(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = FA.run(work_dir=current, machine_name=machine_name, ctx=ctx)
-    if ctx is not None:
+    if ctx is not None and parsed is not None:
         csv_rows = process.flash_attention_to_csv(ctx, parsed)
         process.process_run("flash_attention", ctx, csv_rows)
 
 
 def run_FIO(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = FIO.run(work_dir=current, machine_name=machine_name, ctx=ctx)
-    if ctx is not None:
+    if ctx is not None and parsed is not None:
         csv_rows = process.fio_to_csv(ctx, parsed)
         process.process_run("fio", ctx, csv_rows)
 
 
 def run_HBMBandwidth(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = HBM.run(work_dir=current, machine_name=machine_name, ctx=ctx)
-    if ctx is not None:
+    if ctx is not None and parsed is not None:
         csv_rows = process.hbm_bandwidth_to_csv(ctx, parsed)
         process.process_run("hbm_bandwidth", ctx, csv_rows)
 
 
 def run_LLMBenchmark(machine_name: str, current: str, ctx: RunContext | None = None) -> None:
     parsed = llmb.run(work_dir=current, machine_name=machine_name, ctx=ctx)
-    if ctx is not None:
+    if ctx is not None and parsed is not None:
         csv_rows = process.llm_benchmark_amd_to_csv(ctx, parsed)
         process.process_run("llm_benchmark", ctx, csv_rows)
 

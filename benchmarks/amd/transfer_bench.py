@@ -96,3 +96,4 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict
     table = _build_table(parsed)
     print(table)
     tools.export_markdown("TransferBench", "TransferBench Results in GB/s", table)
+    return None

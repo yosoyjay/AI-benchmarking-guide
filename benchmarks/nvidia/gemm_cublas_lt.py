@@ -173,3 +173,4 @@ def run(
         f"The results shown below are with random initialization (best representation of real-life workloads) {datatype}, and {w} warmup iterations.",
         table,
     )
+    return None

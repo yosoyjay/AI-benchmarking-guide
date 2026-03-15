@@ -121,3 +121,4 @@ def run(
 
     if ctx is not None:
         return all_rows
+    return None
