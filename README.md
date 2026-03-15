@@ -73,17 +73,30 @@ To assess how different system components (as tested by the microbenchmarks) aff
 
 # HOW TO RUN THE BENCHMARKS
 
-We highly recommend running the benchmarks inside a virtual env to avoid clashing with other pip dependencies. Start a virtual env and activate it:
+We highly recommend running the benchmarks inside a virtual env to avoid clashing with other pip dependencies. Create and activate a virtual env with [uv](https://docs.astral.sh/uv/):
 
-```
-python3 -m venv venv && source venv/bin/activate
+```bash
+uv venv && source .venv/bin/activate
 ```
 
 Installation of benchmark dependencies requires multiple steps.
 A convenience script `install-dependencies.sh` is provided to simplify installation.
+It defaults to `uv pip` but accepts an alternative pip command as an argument.
 
 ```bash
-./install-dependencies.sh 
+./install-dependencies.sh
+```
+
+Or install directly with `uv`:
+
+```bash
+# NVIDIA (non-GB200/GB300)
+uv pip install -e ".[nvidia]"
+uv pip install --no-build-isolation flash-attn==2.8.1
+
+# AMD (torch must be installed from ROCm index first)
+uv pip install --index-url https://download.pytorch.org/whl/rocm6.2.4 torch torchvision torchaudio
+uv pip install -e ".[amd]"
 ```
 
 If you wish to run LLM benchmarks, make sure to correctly set the huggingface home directory. This is where the model weights will be downloaded:
@@ -137,6 +150,28 @@ LLM Inference Workloads: `llm`
 - All the NVIDIA models in `config.json` are marked with `"type": "nvidia"`
 
 You can find results of these benchmarks ran on various virtual machines in the [`Azure_Results`](https://github.com/Azure/AI-benchmarking-guide/tree/main/Azure_Results) directory.
+
+### Development
+
+Install dev dependencies (ruff, black, pytest, pre-commit):
+
+```bash
+uv pip install -e ".[dev]"
+pre-commit install
+```
+
+Run linting and formatting checks:
+
+```bash
+ruff check .
+black --check .
+```
+
+Run tests:
+
+```bash
+pytest
+```
 
 ### Storage
 - We recommend cloning this benchmark repository onto a disk with at least 5TB if you plan on running LLM Benchmarks, because the model weights are massive. 

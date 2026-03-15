@@ -8,12 +8,12 @@ usage() {
 Usage: $0 [pip_command]
 
 Arguments:
-  pip_command     The pip executable to use (default: 'python3 -m pip')
+  pip_command     The pip executable to use (default: 'uv pip')
 
 Example:
-  $0 'uv pip'          # Use 'uv pip' instead of 'python3 -m pip'
-  $0                   # Defaults to 'python3 -m pip'
-  $0 --help            # Show this help message
+  $0 'python3 -m pip'   # Use 'python3 -m pip' instead of 'uv pip'
+  $0                     # Defaults to 'uv pip'
+  $0 --help              # Show this help message
 EOF
     exit 1
 }
@@ -22,7 +22,7 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
     usage
 fi
 
-pip=${1:-'python3 -m pip'}
+pip=${1:-'uv pip'}
 
 # Determine GPU platform
 if command -v rocminfo &> /dev/null && rocminfo &> /dev/null; then
@@ -63,10 +63,9 @@ clone_repo() {
 
 # Install dependencies based on GPU platform
 if [[ "$platform" == "AMD" ]]; then
-    $pip install -r requirements_torch_amd.txt
-    # Cannot install from requirements_torch_amd because these packages are not availabile in
-    # the index-url required for ROCm torch libs.  Installing here to maintain same grouping.
-    $pip install ninja packaging psutil setuptools wheel
+    # ROCm torch packages require a special index URL
+    $pip install --index-url https://download.pytorch.org/whl/rocm6.2.4 torch torchvision torchaudio
+    $pip install -e ".[amd]"
 
     echo "Building FlashAttention for AMD/ROCm"
     clone_repo "https://github.com/triton-lang/triton" "triton" "3ca2f498e98ed7249b82722587c511a5610e00c4"
@@ -80,17 +79,15 @@ if [[ "$platform" == "AMD" ]]; then
     python3 setup.py install
     popd > /dev/null
 
-    grep -v tensorrt requirements_main.txt | xargs -r $pip install
-
 elif [[ "$platform" == "NVIDIA" ]]; then
     gpu_output=$(nvidia-smi --query-gpu=gpu_name --format=csv,noheader)
     if echo "$gpu_output" | grep -q "GB"; then
-        # only install GB200 & GB300 requirements
-        $pip install torch prettytable cmake huggingface_hub numpy matplotlib
+        # GB200 & GB300: core deps only plus torch and prettytable
+        $pip install -e .
+        $pip install torch prettytable
     else
-        $pip install -r requirements_main.txt
-        xargs -r $pip install --no-build-isolation < requirements_flashattn.txt
-        $pip install -r requirements_torch_nvidia.txt  
+        $pip install -e ".[nvidia]"
+        $pip install --no-build-isolation flash-attn==2.8.1
     fi
 fi
 

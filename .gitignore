@@ -122,6 +122,9 @@ venv.bak/
 
 #extras
 
+triton/
+uv.lock
+
 BabelStream/
 CPUStream/
 multichase/
