@@ -5,6 +5,8 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_BABELSTREAM_REPO = "https://github.com/gitaumark/BabelStream"
+
 class HBMBandwidth:
     def __init__(self, path: str, machine: str):
         self.name = "HBMBandwidth"
@@ -25,7 +27,7 @@ class HBMBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             results = tools.run_cmd(
-                ["git", "clone", "https://github.com/gitaumark/BabelStream",  path],
+                ["git", "clone", _BABELSTREAM_REPO,  path],
             )
 
         build_path = os.path.join(current, "BabelStream")

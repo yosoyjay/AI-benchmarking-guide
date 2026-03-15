@@ -6,6 +6,8 @@ from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
+_NVBANDWIDTH_REPO = "https://github.com/NVIDIA/nvbandwidth"
+
 class NVBandwidth:
     TEST_NAMES = [
         "device_to_host_memcpy_ce",
@@ -27,7 +29,7 @@ class NVBandwidth:
         path ='nvbandwidth'
         isdir = os.path.isdir(path)
         if not isdir:
-            results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nvbandwidth', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            results = subprocess.run(['git', 'clone', _NVBANDWIDTH_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nvbandwidth')
             os.chdir(build_path)
             results = subprocess.run(['sed', '-i', r'2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)', 'CMakeLists.txt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)

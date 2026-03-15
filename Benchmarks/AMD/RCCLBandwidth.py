@@ -6,6 +6,10 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_RCCL_PYTORCH_IMAGE = "rocm/pytorch:rocm6.2.3_ubuntu22.04_py3.10_pytorch_release_2.3.0_triton_llvm_reg_issue"
+_RCCL_REPO = "https://github.com/ROCm/rccl.git"
+_RCCL_TESTS_REPO = "https://github.com/ROCm/rccl-tests.git"
+
 class RCCLBandwidth:
     def __init__(self, config_path:str, dir_path:str, machine: str):
         self.name='RCCLBandwidth'
@@ -32,8 +36,8 @@ class RCCLBandwidth:
         }
 
         # Creates new Docker container from https://hub.docker.com/r/rocm/pytorch/tags
-        logger.info("Pulling docker container rocm/pytorch:rocm6.2.3_ubuntu22.04_py3.10_pytorch_release_2.3.0_triton_llvm_reg_issue...")
-        self.container = client.containers.run('rocm/pytorch:rocm6.2.3_ubuntu22.04_py3.10_pytorch_release_2.3.0_triton_llvm_reg_issue', **docker_run_options)
+        logger.info("Pulling docker container %s...", _RCCL_PYTORCH_IMAGE)
+        self.container = client.containers.run(_RCCL_PYTORCH_IMAGE, **docker_run_options)
         logger.info("Docker Container ID: %s", self.container.id)
 
     def build(self):
@@ -41,7 +45,7 @@ class RCCLBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building RCCL Library...")
-            clone_cmd = "git clone https://github.com/ROCm/rccl.git " + self.dir_path + "/rccl"
+            clone_cmd = "git clone " + _RCCL_REPO + " " + self.dir_path + "/rccl"
             results = self.container.exec_run(clone_cmd, stderr=True)
             if results.exit_code != 0:
                 tools.write_log(results.output.decode('utf-8'))
@@ -54,7 +58,7 @@ class RCCLBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building RCCL Tests...")
-            clone_cmd = "git clone https://github.com/ROCm/rccl-tests.git " + self.dir_path + "/rccl-tests"
+            clone_cmd = "git clone " + _RCCL_TESTS_REPO + " " + self.dir_path + "/rccl-tests"
             results = self.container.exec_run(clone_cmd, stderr=True)
             if results.exit_code != 0:
                 tools.write_log(results.output.decode('utf-8'))

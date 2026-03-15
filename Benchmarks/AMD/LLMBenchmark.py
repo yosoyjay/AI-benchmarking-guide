@@ -5,6 +5,8 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_VLLM_IMAGE = "rocm/vllm-dev:20241121-tuned"
+
 class LLMBenchmark:
     def __init__(self, config_path: str, dir_path: str, machine: str):
         self.name = "LLMBenchmark"
@@ -34,8 +36,8 @@ class LLMBenchmark:
         }
 
         # Creates new Docker container
-        logger.info("Pulling docker container rocm/vllm-dev:20241121-tuned")
-        self.container = client.containers.run('rocm/vllm-dev:20241121-tuned', **docker_run_options)
+        logger.info("Pulling docker container %s", _VLLM_IMAGE)
+        self.container = client.containers.run(_VLLM_IMAGE, **docker_run_options)
         logger.info("Docker Container ID: %s", self.container.id)
 
     def run_benchmark(self):

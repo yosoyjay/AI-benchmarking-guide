@@ -6,6 +6,10 @@ import docker
 
 logger = logging.getLogger(__name__)
 
+_HIPBLAS_IMAGE = "rocm/vllm-dev:main"
+_HIPBLASLT_REPO = "https://github.com/ROCm/hipBLASLt"
+_HIPBLASLT_COMMIT = "a11ccf64efcd818106dbe37768f69dfcc0a7ff22"
+
 class GEMMHipBLAS:
     def __init__(self, path: str, dir_path: str, machine: str, i: int = 1000, w: int = 10000):
         self.name = "GEMMHipBLAS"
@@ -34,17 +38,17 @@ class GEMMHipBLAS:
             'detach': True
         }
         # Creates new Docker container
-        logger.info("Pulling docker container rocm/vllm-dev:main...")
-        self.container = client.containers.run('rocm/vllm-dev:main', **docker_run_options)
+        logger.info("Pulling docker container %s...", _HIPBLAS_IMAGE)
+        self.container = client.containers.run(_HIPBLAS_IMAGE, **docker_run_options)
         logger.info("Launched Docker Container ID: %s", self.container.id)
 
     def build(self):
         path = "hipBLASLt"
         isdir = os.path.isdir(path)
         if not isdir:
-            clone_cmd = "git clone https://github.com/ROCm/hipBLASLt " + self.dir_path + "/hipBLASLt"
+            clone_cmd = "git clone " + _HIPBLASLT_REPO + " " + self.dir_path + "/hipBLASLt"
             results = self.container.exec_run(clone_cmd, stderr=True)
-            results = self.container.exec_run(f'/bin/sh -c "cd {self.dir_path}/hipBLASLt && git checkout a11ccf64efcd818106dbe37768f69dfcc0a7ff22"', stderr=True)
+            results = self.container.exec_run(f'/bin/sh -c "cd {self.dir_path}/hipBLASLt && git checkout {_HIPBLASLT_COMMIT}"', stderr=True)
             if results.exit_code != 0:
                 tools.write_log(results.output.decode('utf-8'))
                 return

@@ -6,6 +6,9 @@ from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
+_NCCL_REPO = "https://github.com/NVIDIA/nccl.git"
+_NCCL_TESTS_REPO = "https://github.com/NVIDIA/nccl-tests.git"
+
 class NCCLBandwidth:
     def __init__(self, path:str, machine: str):
         self.name='NCCLBandwidth'
@@ -20,7 +23,7 @@ class NCCLBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building NCCL Library...")
-            results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nccl.git', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            results = subprocess.run(['git', 'clone', _NCCL_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl')
             os.chdir(build_path)
             results = tools.run_cmd('make -j src.build', shell=True)
@@ -34,7 +37,7 @@ class NCCLBandwidth:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building NCCL Test...")
-            results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nccl-tests.git', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            results = subprocess.run(['git', 'clone', _NCCL_TESTS_REPO, path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl-tests')
             os.chdir(build_path)
             results = tools.run_cmd(['make'], env=self.env)

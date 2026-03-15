@@ -6,6 +6,8 @@ from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
+_SUPERBENCHMARK_REPO = "https://github.com/gitaumark/superbenchmark"
+
 class GEMMCublastLt:
     def __init__(self, path: str, machine: str, b: int = 1, i: int = 1000, w: int = 10000):
         self.name = "GEMMCublasLt"
@@ -35,7 +37,7 @@ class GEMMCublastLt:
                 [
                     "git",
                     "clone",
-                    "https://github.com/gitaumark/superbenchmark",
+                    _SUPERBENCHMARK_REPO,
                     path,
                 ],
             )

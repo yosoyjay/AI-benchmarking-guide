@@ -7,6 +7,8 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_FLASH_ATTENTION_REPO = "https://github.com/Dao-AILab/flash-attention.git"
+
 class FlashAttention:
     def __init__(self, path:str, machine: str):
         self.name='FlashAttention'
@@ -18,7 +20,7 @@ class FlashAttention:
         path ='flash-attention'
         isdir = os.path.isdir(path)
         if not isdir:
-            results = subprocess.run('git clone https://github.com/Dao-AILab/flash-attention.git',shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            results = subprocess.run(f'git clone {_FLASH_ATTENTION_REPO}',shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         build_path = os.path.join(current, 'flash-attention/benchmarks')
         os.chdir(build_path)
 

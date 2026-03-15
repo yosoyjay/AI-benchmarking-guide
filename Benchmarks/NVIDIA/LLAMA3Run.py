@@ -9,6 +9,8 @@ from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_NEMO_IMAGE = "nvcr.io/nvidia/nemo:25.04"
+
 class LLAMA3Pretraining:
     def __init__(self, config_path: str, machine_name: str, model_size: str = "8b"):
         self.name = "LLAMA3Pretraining"
@@ -16,7 +18,7 @@ class LLAMA3Pretraining:
         self.config = tools.load_benchmark_config(config_path, self.name)
         self.mount_path = self.config.get("mount_path", ".")
         self.training_script = self.config.get("training_script", "Training/LLAMA3Recipe.py")
-        self.container = self.config.get("docker_image", "nvcr.io/nvidia/nemo:25.04")
+        self.container = self.config.get("docker_image", _DEFAULT_NEMO_IMAGE)
         self.model_size = model_size
 
     def plot_results(self, file_path: str = None):

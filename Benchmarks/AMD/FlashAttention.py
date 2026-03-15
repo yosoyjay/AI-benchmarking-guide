@@ -7,6 +7,10 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_FLASH_ATTENTION_IMAGE = "powderluv/vllm_dev_channel:20240927"
+_FLASH_ATTENTION_REPO = "https://github.com/Dao-AILab/flash-attention.git"
+_FLASH_ATTENTION_CHECKOUT = "418d677"
+
 class FlashAttention:
     def __init__(self, path:str, machine: str):
         self.name='FlashAttention'
@@ -33,8 +37,8 @@ class FlashAttention:
         }
 
         # Creates new Docker container
-        logger.info("Pulling docker container powderluv/vllm_dev_channel:20240927...")
-        self.container = client.containers.run('powderluv/vllm_dev_channel:20240927', **docker_run_options)
+        logger.info("Pulling docker container %s...", _FLASH_ATTENTION_IMAGE)
+        self.container = client.containers.run(_FLASH_ATTENTION_IMAGE, **docker_run_options)
         logger.info("Created Docker Container ID: %s", self.container.id)
 
     def run(self):
@@ -42,12 +46,12 @@ class FlashAttention:
         path ='flash-attention'
         isdir = os.path.isdir(path)
         if not isdir:
-            results = tools.run_cmd('git clone https://github.com/Dao-AILab/flash-attention.git',shell=True)
+            results = tools.run_cmd(f'git clone {_FLASH_ATTENTION_REPO}',shell=True)
 
         build_path = os.path.join(current, 'flash-attention')
         os.chdir(build_path)
 
-        results = tools.run_cmd('git checkout 418d677',shell=True)
+        results = tools.run_cmd(f'git checkout {_FLASH_ATTENTION_CHECKOUT}',shell=True)
 
         self.create_container()
         logger.info("Running Flash Attention...")

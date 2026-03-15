@@ -5,6 +5,8 @@ from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
 
+_MULTICHASE_REPO = "https://github.com/google/multichase"
+
 class Multichase:
     def __init__(self, path:str, machine: str):
         self.name = "Multichase"
@@ -16,7 +18,7 @@ class Multichase:
         isdir = os.path.isdir(path)
         if not isdir:
             results = tools.run_cmd(
-                ["git", "clone", "https://github.com/google/multichase",  path],
+                ["git", "clone", _MULTICHASE_REPO,  path],
             )
 
             build_path = os.path.join(current, "multichase")

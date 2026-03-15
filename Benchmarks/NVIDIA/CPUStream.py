@@ -5,6 +5,8 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_BABELSTREAM_REPO = "https://github.com/UoB-HPC/BabelStream"
+
 class CPUStream:
     def __init__(self, path:str, machine: str):
         self.name = "CPUStream"
@@ -27,7 +29,7 @@ class CPUStream:
         isdir = os.path.isdir(path)
         if not isdir:
             results = tools.run_cmd(
-                ["git", "clone", "https://github.com/UoB-HPC/BabelStream",  path],
+                ["git", "clone", _BABELSTREAM_REPO,  path],
             )
 
         build_path = os.path.join(current, "CPUStream")

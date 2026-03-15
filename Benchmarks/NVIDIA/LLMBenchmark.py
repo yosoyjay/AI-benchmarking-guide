@@ -6,6 +6,11 @@ from huggingface_hub import snapshot_download
 
 logger = logging.getLogger(__name__)
 
+_TENSORRT_LLM_REPO = "https://github.com/NVIDIA/TensorRT-LLM.git"
+_TENSORRT_LLM_VERSION = "v0.18.2"
+_TENSORRT_LLM_PIP_VERSION = "0.18.2"
+_NVIDIA_PYPI_URL = "https://pypi.nvidia.com"
+
 class LLMBenchmark:
     def __init__(self, config_path: str, dir_path: str, machine: str):
         self.name = "LLMBenchmark"
@@ -22,15 +27,15 @@ class LLMBenchmark:
     def install_requirements(self):
         # Clone TensorRT-LLM repo
         if not os.path.exists(os.path.join(self.dir_path, 'TensorRT-LLM')):
-            logger.info("Cloning TensorRT-LLM repository from https://github.com/NVIDIA/TensorRT-LLM.git")
-            i4 = tools.run_cmd("git clone https://github.com/NVIDIA/TensorRT-LLM.git && cd TensorRT-LLM && git checkout v0.18.2", shell=True, env=self.env)
+            logger.info("Cloning TensorRT-LLM repository from %s", _TENSORRT_LLM_REPO)
+            i4 = tools.run_cmd(f"git clone {_TENSORRT_LLM_REPO} && cd TensorRT-LLM && git checkout {_TENSORRT_LLM_VERSION}", shell=True, env=self.env)
 
             if not os.path.exists("/.dockerenv"):
                 # Install required packages
                 logger.info("No Docker container detected. Installing tensorrt-llm")
-                i2 = tools.run_cmd("pip install tensorrt-llm==0.18.2", shell=True, env=self.env)
+                i2 = tools.run_cmd(f"pip install tensorrt-llm=={_TENSORRT_LLM_PIP_VERSION}", shell=True, env=self.env)
                 i2 = tools.run_cmd("sudo apt update && sudo apt-get -y install libopenmpi-dev", shell=True, env=self.env)
-                i2 = tools.run_cmd("pip3 install --no-cache-dir --extra-index-url https://pypi.nvidia.com tensorrt-libs", shell=True, env=self.env)
+                i2 = tools.run_cmd(f"pip3 install --no-cache-dir --extra-index-url {_NVIDIA_PYPI_URL} tensorrt-libs", shell=True, env=self.env)
 
     def download_models(self):
         for model_name in self.config['models']:

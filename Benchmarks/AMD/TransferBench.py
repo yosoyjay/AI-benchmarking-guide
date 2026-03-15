@@ -5,6 +5,8 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_TRANSFERBENCH_REPO = "https://github.com/ROCm/TransferBench.git"
+
 class TransferBench:
     def __init__(self, config_path: str, dir_path: str, machine: str):
         self.name = "TransferBench"
@@ -16,7 +18,7 @@ class TransferBench:
         isdir = os.path.isdir(path)
         if not isdir:
             logger.info("Building TransferBench...")
-            clone_cmd = 'git clone https://github.com/ROCm/TransferBench.git "' + self.dir_path + '/TransferBench"'
+            clone_cmd = 'git clone ' + _TRANSFERBENCH_REPO + ' "' + self.dir_path + '/TransferBench"'
             results = tools.run_cmd(clone_cmd, shell=True)
             results = tools.run_cmd('mkdir -p "' + self.dir_path + '/TransferBench/build"', shell=True)
 

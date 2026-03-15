@@ -5,6 +5,8 @@ from Infra import tools
 
 logger = logging.getLogger(__name__)
 
+_BABELSTREAM_REPO = "https://github.com/gitaumark/BabelStream"
+
 class HBMBandwidth:
     def __init__(self, config_path: str, dir_path: str, machine: str):
         self.name = "HBMBandwidth"
@@ -25,7 +27,7 @@ class HBMBandwidth:
         path = "BabelStream"
         isdir = os.path.isdir(path)
         if not isdir:
-            clone_cmd = "git clone https://github.com/gitaumark/BabelStream " + self.dir_path + "/BabelStream"
+            clone_cmd = "git clone " + _BABELSTREAM_REPO + " " + self.dir_path + "/BabelStream"
             results = tools.run_cmd(clone_cmd, shell=True)
             results = tools.run_cmd('cd ' + self.dir_path + '/BabelStream && cmake -Bbuild -H. -DMODEL=hip -DRELEASE_FLAGS="-O3" -DCMAKE_CXX_COMPILER=hipcc && cmake --build build', shell=True)
 
