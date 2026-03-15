@@ -9,6 +9,7 @@ class NCCLBandwidth:
         self.machine_name = machine
         self.buffer = []
         self.algo = "NVLS"
+        self.env = None
 
     def build(self):
         current = os.getcwd()
@@ -23,8 +24,9 @@ class NCCLBandwidth:
             tools.write_log(tools.check_error(results))
             os.chdir(current)
 
-        os.environ['NCCL_HOME'] = current + '/nccl/build'
-        os.environ['LD_LIBRARY_PATH'] = current + '/nccl/build/lib:' + os.environ.get('LD_LIBRARY_PATH', '')
+        nccl_home = current + '/nccl/build'
+        ld_path = current + '/nccl/build/lib:' + os.environ.get('LD_LIBRARY_PATH', '')
+        self.env = {**os.environ, 'NCCL_HOME': nccl_home, 'LD_LIBRARY_PATH': ld_path}
 
         path ='nccl-tests'
         isdir = os.path.isdir(path)
@@ -33,7 +35,7 @@ class NCCLBandwidth:
             results = subprocess.run(['git', 'clone', 'https://github.com/NVIDIA/nccl-tests.git', path], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             build_path = os.path.join(current, 'nccl-tests')
             os.chdir(build_path)
-            results = subprocess.run(['make'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            results = subprocess.run(['make'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
             tools.write_log(tools.check_error(results))
         else:
             build_path = os.path.join(current, 'nccl-tests')
@@ -51,7 +53,7 @@ class NCCLBandwidth:
             self.algo = "Ring"
         print("Running NCCL AllReduce on " + num_gpus + " GPUs")
 
-        results = subprocess.run('NCCL_ALGO='+ self.algo +' ./build/all_reduce_perf -b 8 -e 8G -f 2 -g ' + num_gpus + ' -n 40 | grep float', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        results = subprocess.run('NCCL_ALGO='+ self.algo +' ./build/all_reduce_perf -b 8 -e 8G -f 2 -g ' + num_gpus + ' -n 40 | grep float', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=self.env)
         tools.write_log(tools.check_error(results))
         res = results.stdout.decode('utf-8').split('\n')
         sizes = []
