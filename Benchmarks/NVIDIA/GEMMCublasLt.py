@@ -117,6 +117,10 @@ class GEMMCublastLt:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
+            if results.returncode != 0:
+                print(f"Warning: cublaslt_gemm failed for M={m_dims[i]} N={n_dims[i]} K={k_dims[i]}: returncode={results.returncode}")
+                tools.write_log(tools.check_error(results))
+                continue
             log = results.stdout.decode('utf-8').split()
             buffer.append(log)
             tools.write_log(tools.check_error(results))
