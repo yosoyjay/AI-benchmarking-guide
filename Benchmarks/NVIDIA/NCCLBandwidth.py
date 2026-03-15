@@ -43,7 +43,12 @@ class NCCLBandwidth:
     def run(self):
         current = os.getcwd()
         buffer=[["8 ","16 ","32 ","64 ","128 ","256 ","512 ","1K","2K","4K","8K","16K","32K","65K","132K","256K", "524K","1M","2M","4M","8M","16M","33M","67M","134M","268M","536M","1G","2G","4G","8G"]]
-        num_gpus = str(subprocess.run("nvidia-smi --query-gpu=name --format=csv,noheader | wc -l", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE).stdout.decode('utf-8')).strip()
+        num_gpus_result = subprocess.run("nvidia-smi --query-gpu=name --format=csv,noheader | wc -l", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if num_gpus_result.returncode != 0 or not num_gpus_result.stdout.decode('utf-8').strip():
+            print("Warning: nvidia-smi failed to detect GPU count, defaulting to 8")
+            num_gpus = "8"
+        else:
+            num_gpus = num_gpus_result.stdout.decode('utf-8').strip()
         if num_gpus == '4':
             self.algo = "Ring"
         print("Running NCCL AllReduce on " + num_gpus + " GPUs")
