@@ -7,7 +7,7 @@ import subprocess
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -137,8 +137,6 @@ def run(
             datatype,
         ]
         if ctx is not None:
-            from infra.capture import capture_cmd
-
             result = capture_cmd(cmd, ctx=ctx, suffix=f"_m{m}_n{n}_k{k}")
         else:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

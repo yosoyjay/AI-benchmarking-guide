@@ -5,7 +5,7 @@ import logging
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_docker
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -97,8 +97,6 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
             yaml_cfg = _build_hipblas_yaml(m, n, k)
             cmd = f'{bench_bin} --device 0 --flush --yaml - <<< "{yaml_cfg}"' f' | grep -B 1 "T,N,0"'
             if ctx is not None:
-                from infra.capture import capture_docker
-
                 stdout, stderr, exit_code = capture_docker(
                     container, ["/bin/bash", "-c", cmd], ctx=ctx, suffix=f"_m{m}_n{n}_k{k}"
                 )

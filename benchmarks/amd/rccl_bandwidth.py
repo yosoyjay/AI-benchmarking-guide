@@ -5,7 +5,7 @@ import logging
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_docker
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -67,8 +67,6 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict
         for algo in _ALGOS:
             cmd = f"NCCL_ALGO={algo} {perf_bin} " f"-b 8 -e 8G -f 2 -g 8 -n 40"
             if ctx is not None:
-                from infra.capture import capture_docker
-
                 stdout, stderr, exit_code = capture_docker(
                     container, ["/bin/sh", "-c", cmd], ctx=ctx, suffix=f"_{algo.lower()}"
                 )

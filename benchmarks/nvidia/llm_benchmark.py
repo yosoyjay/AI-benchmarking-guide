@@ -8,7 +8,7 @@ from huggingface_hub import snapshot_download
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -213,8 +213,6 @@ def _run_benchmarks(
             ]
 
             if ctx is not None:
-                from infra.capture import capture_cmd
-
                 result = capture_cmd(cmd, ctx=ctx, suffix=f"_{name}_{isl}_{osl}", env=env)
                 text = result.stdout.decode("utf-8")
             else:

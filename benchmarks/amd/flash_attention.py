@@ -7,7 +7,7 @@ import re
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_docker
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -82,8 +82,6 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
     logger.info("Running Flash Attention...")
     with AmdContainer(_FLASH_ATTENTION_IMAGE, work_dir) as container:
         if ctx is not None:
-            from infra.capture import capture_docker
-
             stdout, stderr, exit_code = capture_docker(container, ["python3", bench_script], ctx=ctx)
             output_text = stdout
         else:

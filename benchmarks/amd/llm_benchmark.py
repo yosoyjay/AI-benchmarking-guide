@@ -5,7 +5,7 @@ import logging
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_docker
 from infra.containers import AmdContainer
 
 logger = logging.getLogger(__name__)
@@ -93,8 +93,6 @@ def run(
                                 f"--output-len {output_size}"
                             )
                             if ctx is not None:
-                                from infra.capture import capture_docker
-
                                 name = model_name.replace("/", "_")
                                 stdout, stderr, exit_code = capture_docker(
                                     container,

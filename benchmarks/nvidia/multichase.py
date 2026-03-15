@@ -4,7 +4,7 @@ import logging
 import os
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +76,6 @@ def run(
     script_path = os.path.join(work_dir, "benchmarks", "nvidia", "run_multichase.sh")
     cmd = [script_path, multichase_bin]
     if ctx is not None:
-        from infra.capture import capture_cmd
-
         result = capture_cmd(cmd, ctx=ctx)
     else:
         result = tools.run_cmd(cmd)

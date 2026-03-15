@@ -6,7 +6,7 @@ import os
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +78,6 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> dict
     cfg = os.path.join(work_dir, "benchmarks", "amd", "transferbench.cfg")
     cmd = ["sudo", tb_bin, cfg]
     if ctx is not None:
-        from infra.capture import capture_cmd
-
         result = capture_cmd(cmd, ctx=ctx)
     else:
         result = tools.run_cmd(cmd)

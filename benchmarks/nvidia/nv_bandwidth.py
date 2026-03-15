@@ -6,7 +6,7 @@ import os
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +128,6 @@ def run(work_dir: str, machine_name: str, ctx: RunContext | None = None) -> list
         "device_to_device_bidirectional_memcpy_read_ce",
     ]
     if ctx is not None:
-        from infra.capture import capture_cmd
-
         result = capture_cmd(cmd, ctx=ctx, cwd=repo_dir)
     else:
         result = tools.run_cmd(cmd, cwd=repo_dir)

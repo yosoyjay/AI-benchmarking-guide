@@ -10,7 +10,7 @@ import numpy.typing as npt
 from prettytable import PrettyTable
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -181,8 +181,6 @@ def run(
     ]
 
     if ctx is not None:
-        from infra.capture import capture_cmd
-
         result = capture_cmd(command, ctx=ctx)
         stdout_text = result.stdout.decode("utf-8") if result.stdout else ""
 

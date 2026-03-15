@@ -2,10 +2,11 @@
 
 import logging
 import os
+import statistics
 import time
 
 from infra import tools
-from infra.capture import RunContext
+from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +74,6 @@ def run(
     buffer = []
     for i in range(num_runs):
         if ctx is not None:
-            from infra.capture import capture_cmd
-
             result = capture_cmd(cmd, ctx=ctx, suffix=f"_run{i}", cwd=build_dir)
         else:
             result = tools.run_cmd(cmd, cwd=build_dir)
@@ -83,8 +82,6 @@ def run(
         time.sleep(int(interval))
 
     if ctx is not None:
-        import statistics
-
         ops = {name: [] for name in tools.BABELSTREAM_OPS}
         for log in buffer:
             if len(log) < 5:
