@@ -51,10 +51,11 @@ class LLMBenchmark:
                     for tp_size in self.config['models'][model_name]['tp_sizes']:
                         logger.info("Benchmarking %s with TP Size: %s", model_name, tp_size)
                         for max_num_seq in self.config['models'][model_name]['max_num_seqs']:
-                            for i in range(len(self.config['models'][model_name]['input_length'])):
+                            for input_size, output_size in zip(
+                                self.config['models'][model_name]['input_length'],
+                                self.config['models'][model_name]['output_length'],
+                            ):
                                 for request in self.config['models'][model_name]['num_requests']:
-                                    input_size = self.config['models'][model_name]['input_length'][i]
-                                    output_size = self.config['models'][model_name]['output_length'][i]
                                     logger.info(" Input Size: %s, Output Size: %s...", input_size, output_size)
                                     run_benchmark_command = f'''
                                         /bin/bash -c \

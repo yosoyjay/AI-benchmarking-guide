@@ -49,9 +49,10 @@ class LLMBenchmark:
             max_sum = 0
             max_dataset_path = ""
             if self.config['models'][model_name]['use_model'] and self.config['models'][model_name]['type'] == "nvidia":
-                for i in range(len(self.config['models'][model_name]['input_sizes'])):
-                    isl = self.config['models'][model_name]['input_sizes'][i]
-                    osl = self.config['models'][model_name]['output_sizes'][i]
+                for isl, osl in zip(
+                    self.config['models'][model_name]['input_sizes'],
+                    self.config['models'][model_name]['output_sizes'],
+                ):
                     name = model_name.split('/')[1]
                     if (isl + osl > max_sum):
                         max_sum = isl + osl
@@ -93,9 +94,10 @@ class LLMBenchmark:
             if self.config['models'][model_name]['use_model'] and self.config['models'][model_name]['type'] == "nvidia":
                 logger.info("Benchmarking %s with tp size %s", model_name, self.config['models'][model_name]['tp_size'])
                 self.table = PrettyTable(["tp size", "input len", "output len", "throughput(tokens/s)"])
-                for i in range(len(self.config['models'][model_name]['input_sizes'])):
-                    isl = self.config['models'][model_name]['input_sizes'][i]
-                    osl = self.config['models'][model_name]['output_sizes'][i]
+                for isl, osl in zip(
+                    self.config['models'][model_name]['input_sizes'],
+                    self.config['models'][model_name]['output_sizes'],
+                ):
                     tp = self.config['models'][model_name]['tp_size']
                     name = model_name.split('/')[1]
 

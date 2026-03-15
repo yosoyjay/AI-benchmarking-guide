@@ -87,16 +87,16 @@ class GEMMCublastLt:
             k_dims = [1024, 2048, 4096, 8192, 16384, 1024, 12288, 768]
         os.chdir(self.bindir)
         buffer = []
-        for i in range(len(m_dims)):
+        for m, n, k in zip(m_dims, n_dims, k_dims):
             results = subprocess.run(
                 [
                     "./cublaslt_gemm",
                     "-m",
-                    str(m_dims[i]),
+                    str(m),
                     "-n",
-                    str(n_dims[i]),
+                    str(n),
                     "-k",
-                    str(k_dims[i]),
+                    str(k),
                     "-b",
                     str(self.b),
                     "-i",
@@ -110,7 +110,7 @@ class GEMMCublastLt:
                 stderr=subprocess.PIPE,
             )
             if results.returncode != 0:
-                logger.warning("cublaslt_gemm failed for M=%s N=%s K=%s: returncode=%s", m_dims[i], n_dims[i], k_dims[i], results.returncode)
+                logger.warning("cublaslt_gemm failed for M=%s N=%s K=%s: returncode=%s", m, n, k, results.returncode)
                 tools.write_log(tools.check_error(results))
                 continue
             log = results.stdout.decode('utf-8').split()

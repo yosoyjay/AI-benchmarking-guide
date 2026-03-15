@@ -69,8 +69,8 @@ class GEMMHipBLAS:
         k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
 
         try:
-            for i in range(len(m_dims)):
-                hipblas_cmd = f'cd {self.dir_path}/Benchmarks/AMD && ./hipBLAS_runner.sh {m_dims[i]} {n_dims[i]} {k_dims[i]}'
+            for m, n, k in zip(m_dims, n_dims, k_dims):
+                hipblas_cmd = f'cd {self.dir_path}/Benchmarks/AMD && ./hipBLAS_runner.sh {m} {n} {k}'
                 results = self.container.exec_run(f'/bin/sh -c "{hipblas_cmd}"')
                 tools.write_log(results.output.decode('utf-8'))
 
