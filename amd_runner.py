@@ -1,16 +1,16 @@
 import argparse
 import logging
 import os
-import sys
 import subprocess
-from benchmarks.amd import rccl_bandwidth as RCCL
-from benchmarks.amd import flash_attention as FA
-from benchmarks.amd import hbm_bandwidth as HBM
-from benchmarks.amd import transfer_bench as TB
-from benchmarks.amd import gemm_hipblas_lt as GEMM
+
 from benchmarks import fio as FIO
-from infra import tools
+from benchmarks.amd import flash_attention as FA
+from benchmarks.amd import gemm_hipblas_lt as GEMM
+from benchmarks.amd import hbm_bandwidth as HBM
 from benchmarks.amd import llm_benchmark as llmb
+from benchmarks.amd import rccl_bandwidth as RCCL
+from benchmarks.amd import transfer_bench as TB
+from infra import tools
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,9 @@ def _detect_sku():
     try:
         results = subprocess.run(
             "rocminfo | grep 'Marketing Name'",
-            shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         if results.returncode == 0 and results.stdout:
             name = results.stdout.decode("utf-8").strip()
@@ -42,40 +44,59 @@ def _detect_sku():
 def get_system_specs():
     with open(os.path.join("Outputs", "system_specs.txt"), "w") as file:
 
-        results = subprocess.run("rocminfo | grep 'ROCk module version'", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        results = subprocess.run(
+            "rocminfo | grep 'ROCk module version'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         if results.returncode == 0:
-            parts = results.stdout.decode('utf-8').strip().split(" ")
+            parts = results.stdout.decode("utf-8").strip().split(" ")
             rocm_version = parts[3] if len(parts) >= 4 else "unknown"
         else:
             rocm_version = "unknown"
         file.write(f"ROCm version     : {rocm_version}\n")
 
-        results = subprocess.run("lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        results = subprocess.run(
+            "lsb_release -a | grep Release", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         if results.returncode == 0:
-            parts = results.stdout.decode('utf-8').strip().split("\t")
+            parts = results.stdout.decode("utf-8").strip().split("\t")
             ubuntu = parts[1] if len(parts) >= 2 else "unknown"
         else:
             ubuntu = "unknown"
         file.write(f"ubuntu version   : {ubuntu}\n")
 
-        results = subprocess.run("grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep microcode", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        results = subprocess.run(
+            "grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep microcode",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         if results.returncode == 0:
-            lines = results.stdout.decode('utf-8').split("\n")
+            lines = results.stdout.decode("utf-8").split("\n")
             microcode = lines[0] if lines else ""
         else:
             microcode = ""
         file.write(f"{microcode}\n")
 
-        results = subprocess.run("grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep name", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        results = subprocess.run(
+            "grep 'stepping\\|model\\|microcode' /proc/cpuinfo | grep name",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         if results.returncode == 0:
-            lines = results.stdout.decode('utf-8').split("\n")
+            lines = results.stdout.decode("utf-8").split("\n")
             file.write(f"{lines[0] if lines else ''}\n")
         else:
             file.write("\n")
 
-        results = subprocess.run("grep 'cores\\|model\\|microcode' /proc/cpuinfo | grep cores", shell=True, stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        results = subprocess.run(
+            "grep 'cores\\|model\\|microcode' /proc/cpuinfo | grep cores",
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         if results.returncode == 0:
-            lines = results.stdout.decode('utf-8').split("\n")
+            lines = results.stdout.decode("utf-8").split("\n")
             file.write(lines[0] if lines else "")
         else:
             file.write("")
@@ -87,11 +108,13 @@ def run_TransferBench(machine_name, current):
     test.build()
     test.run()
 
+
 def run_GEMMHipBLAS(machine_name, current):
     test = GEMM.GEMMHipBLAS("config.json", current, machine_name)
     test.create_container()
     test.build()
     test.run_model_sizes()
+
 
 def run_RCCLBandwidth(machine_name, current):
     test = RCCL.RCCLBandwidth("config.json", current, machine_name)
@@ -99,18 +122,21 @@ def run_RCCLBandwidth(machine_name, current):
     test.build()
     test.run()
 
+
 def run_FlashAttention(machine_name, current):
-    test = FA.FlashAttention(current, machine_name)
-    test.run()
+    FA.run(work_dir=current, machine_name=machine_name)
+
 
 def run_FIO(machine_name, current):
     test = FIO.FIO(current, machine_name)
     test.run()
 
+
 def run_HBMBandwidth(machine_name, current):
     test = HBM.HBMBandwidth("config.json", current, machine_name)
     test.build()
     test.run()
+
 
 def run_LLMBenchmark(machine_name, current):
     test = llmb.LLMBenchmark("config.json", current, machine_name)
@@ -134,7 +160,8 @@ def main():
 
     parser = argparse.ArgumentParser(description="AMD GPU Benchmark Suite")
     parser.add_argument(
-        "benchmarks", nargs="+",
+        "benchmarks",
+        nargs="+",
         choices=[*BENCHMARKS, "all"],
         type=str.lower,
         help="Benchmarks to run",

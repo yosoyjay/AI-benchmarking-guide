@@ -89,18 +89,3 @@ def run(work_dir: str, machine_name: str) -> list[dict]:
     print(table)
     tools.export_markdown("Flash Attention 2", _DESCRIPTION, table)
     return rows
-
-
-# ---------------------------------------------------------------------------
-# Backward-compat wrapper (used by amd_runner.py until updated)
-# ---------------------------------------------------------------------------
-
-
-class FlashAttention:
-    def __init__(self, path: str, machine: str):
-        self.name = "FlashAttention"
-        self.machine_name = machine
-        self.dir_path = path
-
-    def run(self):
-        run(work_dir=self.dir_path, machine_name=self.machine_name)
