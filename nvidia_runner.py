@@ -166,12 +166,10 @@ def run_LLMBenchmark(sku_name: str, ctx: RunContext | None = None) -> None:
 
 
 def run_LLAMA3Pretrain(sku_name: str, model_size: str = "8b", ctx: RunContext | None = None) -> None:
-    if "GB200" in sku_name or "H200" in sku_name:
-        test = llama3pre.LLAMA3Pretraining("config.json", sku_name, model_size)
-    else:
+    if "GB200" not in sku_name and "H200" not in sku_name:
         logger.warning("LLAMA3 Pretraining not supported on %s yet", sku_name)
         return
-    result = test.run(ctx=ctx)
+    result = llama3pre.run(work_dir=os.getcwd(), machine_name=sku_name, model_size=model_size, ctx=ctx)
     if ctx is not None and result is not None:
         time_ss, loss_ss = result
         csv_rows = process.llama3_pretrain_to_csv(ctx, time_ss, loss_ss)
