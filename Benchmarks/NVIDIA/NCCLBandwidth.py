@@ -1,4 +1,3 @@
-import json
 import os
 import subprocess
 from Infra import tools
@@ -42,7 +41,6 @@ class NCCLBandwidth:
 
     def run(self):
         current = os.getcwd()
-        buffer=[["8 ","16 ","32 ","64 ","128 ","256 ","512 ","1K","2K","4K","8K","16K","32K","65K","132K","256K", "524K","1M","2M","4M","8M","16M","33M","67M","134M","268M","536M","1G","2G","4G","8G"]]
         num_gpus_result = subprocess.run("nvidia-smi --query-gpu=name --format=csv,noheader | wc -l", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if num_gpus_result.returncode != 0 or not num_gpus_result.stdout.decode('utf-8').strip():
             print("Warning: nvidia-smi failed to detect GPU count, defaulting to 8")
@@ -56,17 +54,18 @@ class NCCLBandwidth:
         results = subprocess.run('NCCL_ALGO='+ self.algo +' ./build/all_reduce_perf -b 8 -e 8G -f 2 -g ' + num_gpus + ' -n 40 | grep float', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         tools.write_log(tools.check_error(results))
         res = results.stdout.decode('utf-8').split('\n')
+        sizes = []
         log = []
         for line in res:
-            line = line.split()
-            if len(line) == 13:
-                log.append(line[11])
+            fields = line.split()
+            if len(fields) == 13:
+                sizes.append(fields[0])
+                log.append(fields[11])
 
-        buffer.append(log)
         table1 = PrettyTable()
         runs = ["Message Size", "Bandwidth (" + self.algo + ")"]
-        for i in range(len(buffer)):
-            table1.add_column(runs[i], buffer[i])
+        table1.add_column(runs[0], sizes)
+        table1.add_column(runs[1], log)
         print(table1)
         tools.export_markdown("NCCL Bandwidth", f"The values (in GB/s) are the bus bandwidth values obtained from the NCCL AllReduce ({self.algo} algorithm) tests in-place operations, varying from 1KB to 8GB of data.", table1)
         os.chdir(current)

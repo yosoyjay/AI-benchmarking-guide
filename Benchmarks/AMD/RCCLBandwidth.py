@@ -1,7 +1,5 @@
-import json
 import docker
 import os
-import csv
 from prettytable import PrettyTable
 from Infra import tools
 
@@ -49,10 +47,6 @@ class RCCLBandwidth:
             if results.exit_code != 0:
                 tools.write_log(results.output.decode('utf-8'))
 
-            results = self.container.exec_run(f'/bin/sh -c "cd .."', stderr=True)
-            if results.exit_code != 0:
-                tools.write_log(results.output.decode('utf-8'))
-
         path ='rccl-tests'
         isdir = os.path.isdir(path)
         if not isdir:
@@ -67,7 +61,8 @@ class RCCLBandwidth:
                 tools.write_log(results.output.decode('utf-8'))
 
     def run(self):
-        buffer=[["8 ","16 ","32 ","64 ","128 ","256 ","512 ","1K","2K","4K","8K","16K","32K","65K","132K","256K", "524K","1M","2M","4M","8M","16M","33M","67M","134M","268M","536M","1G","2G","4G","8G"]]
+        sizes = []
+        bandwidth_columns = []
         runs = ["Tree", "Ring", "NVLS", "NVLSTree"]
         print("Running RCCL AllReduce...")
         try:
@@ -81,16 +76,19 @@ class RCCLBandwidth:
                 res = results.output.decode('utf-8').split('\n')
                 log = []
                 for line in res:
-                    line = line.split()
-                    if len(line) == 13:
-                        log.append(line[11])
-                buffer.append(log)
+                    fields = line.split()
+                    if len(fields) == 13:
+                        if not bandwidth_columns:
+                            sizes.append(fields[0])
+                        log.append(fields[11])
+                bandwidth_columns.append(log)
         finally:
             self.container.kill()
         table1 = PrettyTable()
-        runs = ["Message Size", "Tree", "Ring", "NVLS", "NVLSTree"]
+        col_names = ["Message Size"] + runs
 
-        for i in range(len(buffer)):
-            table1.add_column(runs[i], buffer[i])
+        table1.add_column(col_names[0], sizes)
+        for i, col in enumerate(bandwidth_columns):
+            table1.add_column(col_names[i + 1], col)
         print(table1)
         tools.export_markdown("RCCL Bandwidth", "The values (in GB/s) are the bus bandwidth values obtained from the RCCL AllReduce tests with Tree, Ring, NVLS and NVLSTree algos (in-place operations), varying from 1KB to 8GB of data.", table1)
