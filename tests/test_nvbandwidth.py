@@ -67,15 +67,15 @@ class TestExtractSummaryTable:
         table = NVBandwidth._extract_summary_table(sections["device_to_host_memcpy_ce"])
         # Header row + 4 GPU rows
         assert len(table) == 5
-        assert table[0] == [0, 1, 2, 3]
+        assert table[0] == [0.0, 1.0, 2.0, 3.0]
 
-    def test_numeric_cells_are_ints(self):
+    def test_numeric_cells_are_floats(self):
         sections = NVBandwidth._parse_sections(SAMPLE_OUTPUT)
         table = NVBandwidth._extract_summary_table(sections["device_to_host_memcpy_ce"])
-        # All cells should be ints (header and data are all numeric)
+        # All cells should be floats (header and data are all numeric)
         for row in table:
             for cell in row:
-                assert isinstance(cell, int)
+                assert isinstance(cell, float)
 
 
 class TestFormatOutput:

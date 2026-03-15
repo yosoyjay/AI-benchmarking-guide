@@ -87,7 +87,7 @@ class NVBandwidth:
             if 'memcpy' in stripped or stripped.startswith('running') or stripped.startswith('SUM'):
                 continue
             tokens = stripped.split()
-            row = [int(float(x)) if x.replace('.', '', 1).isdigit() else x for x in tokens]
+            row = [round(float(x), 1) if x.replace('.', '', 1).isdigit() else x for x in tokens]
             table_rows.append(row)
         return table_rows
 
