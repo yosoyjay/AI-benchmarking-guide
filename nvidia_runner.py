@@ -80,9 +80,7 @@ def get_system_specs(current, host_name):
 
 
 def run_CublasLt(sku_name):
-    test = gemm.GEMMCublastLt("config.json", sku_name)
-    test.build()
-    test.run_model_sizes()
+    gemm.run(work_dir=os.getcwd(), machine_name=sku_name)
 
 
 def run_HBMBandwidth(sku_name):

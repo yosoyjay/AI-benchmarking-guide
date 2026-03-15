@@ -1,126 +1,162 @@
+"""GEMM CuBLASLt benchmark (NVIDIA)."""
+
 import logging
 import os
 import subprocess
-from infra import tools
+
 from prettytable import PrettyTable
+
+from infra import tools
 
 logger = logging.getLogger(__name__)
 
 _SUPERBENCHMARK_REPO = "https://github.com/gitaumark/superbenchmark"
 
-class GEMMCublastLt:
-    def __init__(self, path: str, machine: str, b: int = 1, i: int = 1000, w: int = 10000):
-        self.name = "GEMMCublasLt"
-        config = tools.load_benchmark_config(path, self.name)
-        self.datatype = self.config_conversion(config)
-        self.b = b
-        self.i = i
-        self.w = w
-        self.bindir = ''
-        self.machine_name = machine
 
-        # A100 does not support fp8
-        if "A100" in machine:
-            logger.warning("A100 does not support %s, using fp16 instead", self.datatype)
-            self.datatype = "fp16"
+# ---------------------------------------------------------------------------
+# Pure helpers -- no side effects, fully testable
+# ---------------------------------------------------------------------------
 
-    def config_conversion(self, config):
-        return config["datatype"]
 
-    def build(self):
-        bindir = tools.create_dir("bin")
-        self.bindir = bindir
-        path = "superbenchmark"
-        isdir = os.path.isdir(path)
-        if not isdir:
-            results = tools.run_cmd(
-                [
-                    "git",
-                    "clone",
-                    _SUPERBENCHMARK_REPO,
-                    path,
-                ],
-            )
+def parse_cublaslt_line(text):
+    """Parse a single whitespace-delimited output line into a dict.
 
-        if self.datatype == "fp4e2m1":
-            results = subprocess.run("cd superbenchmark && git checkout fp4", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        else:
-            results = subprocess.run("cd superbenchmark && git checkout main", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    Expects 6 columns: m, n, k, batch_size, time_us, tflops.
+    Returns a dict or None if malformed.
+    """
+    tokens = text.split()
+    if len(tokens) != 6:
+        return None
+    return {
+        "m": tokens[0],
+        "n": tokens[1],
+        "k": tokens[2],
+        "batch_size": tokens[3],
+        "time_us": tokens[4],
+        "tflops": tokens[5],
+    }
 
-        current = os.getcwd()
-        build_path = os.path.join(
-            current,
-            "superbenchmark/superbench/benchmarks/micro_benchmarks/cublaslt_gemm",
-        )
 
-        results = tools.run_cmd(
-            ["cmake", "-S", "./"],
-            cwd=build_path,
-        )
+def _build_table(rows):
+    """Format parsed row dicts into a PrettyTable."""
+    table = PrettyTable(["M", "N", "K", "Batch Size", "Time(us)", "TFLOPS"])
+    for r in rows:
+        table.add_row([r["m"], r["n"], r["k"], r["batch_size"], r["time_us"], r["tflops"]])
+    return table
 
-        results = tools.run_cmd(
-            ["make"],
-            cwd=build_path,
-        )
-        logger.debug(results.stderr.decode('utf-8'))
-        results = subprocess.run(
-            ["mv", os.path.join(build_path, "cublaslt_gemm"), bindir],
+
+# ---------------------------------------------------------------------------
+# Orchestration
+# ---------------------------------------------------------------------------
+
+
+def _build(work_dir, datatype):
+    """Clone superbenchmark repo, checkout correct branch, build binary."""
+    repo_dir = os.path.join(work_dir, "superbenchmark")
+    if not os.path.isdir(repo_dir):
+        tools.run_cmd(["git", "clone", _SUPERBENCHMARK_REPO, "superbenchmark"], cwd=work_dir)
+
+    branch = "fp4" if datatype == "fp4e2m1" else "main"
+    tools.run_cmd(["git", "checkout", branch], cwd=repo_dir)
+
+    build_path = os.path.join(
+        repo_dir,
+        "superbench",
+        "benchmarks",
+        "micro_benchmarks",
+        "cublaslt_gemm",
+    )
+    tools.run_cmd(["cmake", "-S", "./"], cwd=build_path)
+    tools.run_cmd(["make"], cwd=build_path)
+
+    bindir = os.path.join(work_dir, "bin")
+    os.makedirs(bindir, exist_ok=True)
+    subprocess.run(
+        ["mv", os.path.join(build_path, "cublaslt_gemm"), bindir],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return bindir
+
+
+def run(work_dir, machine_name, config_path="config.json"):
+    """Clone, build, run CuBLASLt GEMM, parse and report results."""
+    config = tools.load_benchmark_config(config_path, "GEMMCublasLt")
+    datatype = config["datatype"]
+
+    # A100 does not support fp8
+    if "A100" in machine_name:
+        logger.warning("A100 does not support %s, using fp16 instead", datatype)
+        datatype = "fp16"
+
+    bindir = _build(work_dir, datatype)
+
+    b = 1
+    i = 1000
+    w = 10000
+
+    logger.info("Running CublasLt with datatype %s...", datatype)
+    if datatype == "fp8e4m3":
+        m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
+        n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
+        k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
+    elif datatype == "fp4e2m1":
+        m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 802816]
+        n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 192]
+        k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 768]
+    else:
+        m_dims = [1024, 2048, 4096, 8192, 16384, 1024, 6144, 802816]
+        n_dims = [1024, 2048, 4096, 8192, 16384, 2145, 12288, 192]
+        k_dims = [1024, 2048, 4096, 8192, 16384, 1024, 12288, 768]
+
+    cublaslt_bin = os.path.join(bindir, "cublaslt_gemm")
+    rows = []
+    for m, n, k in zip(m_dims, n_dims, k_dims):
+        result = subprocess.run(
+            [
+                cublaslt_bin,
+                "-m",
+                str(m),
+                "-n",
+                str(n),
+                "-k",
+                str(k),
+                "-b",
+                str(b),
+                "-i",
+                str(i),
+                "-w",
+                str(w),
+                "-t",
+                datatype,
+            ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-
-    # run GEMM with predetermined matrix sizes that are commonly used in transformers
-    def run_model_sizes(self):
-        logger.info("Running CublasLt with datatype %s...", self.datatype)
-        if self.datatype == "fp8e4m3":
-            m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 6144, 802816]
-            n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 12288, 192]
-            k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 12288, 768]
-        elif self.datatype == "fp4e2m1":
-            m_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 802816]
-            n_dims = [1024, 2048, 4096, 8192, 16384, 32768, 2145, 192]
-            k_dims = [1024, 2048, 4096, 8192, 16384, 32768, 1024, 768]
-        else:
-            m_dims = [1024, 2048, 4096, 8192, 16384, 1024, 6144, 802816]
-            n_dims = [1024, 2048, 4096, 8192, 16384, 2145, 12288, 192]
-            k_dims = [1024, 2048, 4096, 8192, 16384, 1024, 12288, 768]
-        cublaslt_bin = os.path.join(self.bindir, "cublaslt_gemm")
-        buffer = []
-        for m, n, k in zip(m_dims, n_dims, k_dims):
-            results = subprocess.run(
-                [
-                    cublaslt_bin,
-                    "-m",
-                    str(m),
-                    "-n",
-                    str(n),
-                    "-k",
-                    str(k),
-                    "-b",
-                    str(self.b),
-                    "-i",
-                    str(self.i),
-                    "-w",
-                    str(self.w),
-                    "-t",
-                    self.datatype,
-                ],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+        if result.returncode != 0:
+            logger.warning(
+                "cublaslt_gemm failed for M=%s N=%s K=%s: returncode=%s",
+                m,
+                n,
+                k,
+                result.returncode,
             )
-            if results.returncode != 0:
-                logger.warning("cublaslt_gemm failed for M=%s N=%s K=%s: returncode=%s", m, n, k, results.returncode)
-                tools.write_log(tools.check_error(results))
-                continue
-            log = results.stdout.decode('utf-8').split()
-            buffer.append(log)
-            tools.write_log(tools.check_error(results))
-        table1 = PrettyTable()
-        table1.field_names = ["M", "N", "K", "Batch Size", "Time(us)", "TFLOPS"]
-        for item in buffer:
-            if len(item) == 6:
-                table1.add_row(item)
-            else:
-                logger.warning("Skipping cublaslt_gemm result with %d columns (expected 6): %s", len(item), item)
-        print(table1)
-        tools.export_markdown("GEMM CuBLASLt", f"The results shown below are with random initialization (best representation of real-life workloads) {self.datatype}, and {self.w} warmup iterations.", table1)
+            tools.write_log(tools.check_error(result))
+            continue
+        parsed = parse_cublaslt_line(result.stdout.decode("utf-8"))
+        if parsed:
+            rows.append(parsed)
+        else:
+            logger.warning(
+                "Skipping cublaslt_gemm result with unexpected format: %s",
+                result.stdout.decode("utf-8").strip(),
+            )
+        tools.write_log(tools.check_error(result))
+
+    table = _build_table(rows)
+    print(table)
+    tools.export_markdown(
+        "GEMM CuBLASLt",
+        f"The results shown below are with random initialization (best representation of real-life workloads) {datatype}, and {w} warmup iterations.",
+        table,
+    )
