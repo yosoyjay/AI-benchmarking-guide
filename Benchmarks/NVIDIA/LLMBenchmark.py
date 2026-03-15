@@ -1,13 +1,12 @@
 import os
 from Infra import tools
-import json
 from prettytable import PrettyTable
 from huggingface_hub import snapshot_download
 
 class LLMBenchmark:
     def __init__(self, config_path: str, dir_path: str, machine: str):
         self.name = "LLMBenchmark"
-        self.config = self.get_config(config_path)
+        self.config = tools.load_benchmark_config(config_path, self.name)
         self.dir_path = dir_path
         self.machine = machine
         self.table = None
@@ -16,14 +15,6 @@ class LLMBenchmark:
         tools.create_dir(self.dir_path + "/datasets")
         tools.create_dir(self.dir_path + "/engines")
         tools.create_dir(self.dir_path + "/hub")
-
-    def get_config(self, path: str):
-        with open(path) as file:
-            data = json.load(file)
-        try:
-            return data[self.name]
-        except KeyError:
-            raise KeyError("no value found")
 
     def install_requirements(self):
         # Clone TensorRT-LLM repo

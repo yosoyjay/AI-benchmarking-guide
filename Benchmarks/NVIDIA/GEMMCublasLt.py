@@ -1,4 +1,3 @@
-import json
 import os
 import subprocess
 from Infra import tools
@@ -7,7 +6,7 @@ from prettytable import PrettyTable
 class GEMMCublastLt:
     def __init__(self, path: str, machine: str, b: int = 1, i: int = 1000, w: int = 10000):
         self.name = "GEMMCublasLt"
-        config = self.get_config(path)
+        config = tools.load_benchmark_config(path, self.name)
         self.datatype = self.config_conversion(config)
         self.b = b
         self.i = i
@@ -19,14 +18,6 @@ class GEMMCublastLt:
         if "A100" in machine:
             print(f"Warning: A100 does not support {self.datatype}, using fp16 instead")
             self.datatype = "fp16"
-
-    def get_config(self, path: str):
-        with open(path) as file:
-            data = json.load(file)
-        try:
-            return data[self.name]
-        except KeyError:
-            raise KeyError("no value found")
 
     def config_conversion(self, config):
         return config["datatype"]

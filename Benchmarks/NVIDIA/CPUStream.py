@@ -1,4 +1,3 @@
-import json
 import os
 import time
 from Infra import tools
@@ -7,18 +6,10 @@ class CPUStream:
     def __init__(self, path:str, machine: str):
         self.name = "CPUStream"
         self.machine_name = machine
-        config = self.get_config(path)
+        config = tools.load_benchmark_config(path, self.name)
         self.num_runs, self.interval = self.config_conversion(config)
         self.cpu_count = os.cpu_count() or 4
         self.buffer = []
-
-    def get_config(self, path: str):
-        with open(path) as file:
-            data = json.load(file)
-        try:
-            return data[self.name]
-        except KeyError:
-            raise KeyError("no value found")
 
     def parse_json(self, config):
         return config["inputs"]["num_runs"], config["inputs"]["interval"]

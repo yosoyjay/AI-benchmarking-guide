@@ -16,6 +16,16 @@ def run_cmd(cmd, *, shell=False, env=None, cwd=None, **kwargs):
     return result
 
 
+def load_benchmark_config(path, section_name):
+    """Load a JSON config file and return the section for a benchmark."""
+    with open(path) as f:
+        data = json.load(f)
+    try:
+        return data[section_name]
+    except KeyError:
+        raise KeyError(f"'{section_name}' section not found in {path}")
+
+
 def create_dir(name: str):
     current = os.getcwd()
     outdir = os.path.join(str(current), name)

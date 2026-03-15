@@ -1,6 +1,5 @@
 import os
 import re
-import json
 import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,19 +10,11 @@ class LLAMA3Pretraining:
     def __init__(self, config_path: str, machine_name: str, model_size: str = "8b"):
         self.name = "LLAMA3Pretraining"
         self.machine_name = machine_name
-        self.config = self.get_config(config_path) # get config path from JSON
-        self.mount_path = self.config.get("mount_path", ".") # mount docker container
+        self.config = tools.load_benchmark_config(config_path, self.name)
+        self.mount_path = self.config.get("mount_path", ".")
         self.training_script = self.config.get("training_script", "Training/LLAMA3Recipe.py")
         self.container = self.config.get("docker_image", "nvcr.io/nvidia/nemo:25.04")
         self.model_size = model_size
-
-    def get_config(self, path: str):
-        with open(path) as f:
-            data = json.load(f)
-        try:
-            return data[self.name]
-        except KeyError:
-            raise KeyError(f"{self.name} section not found in config")
 
     def plot_results(self, file_path: str = None):
         # extract values from the output file
