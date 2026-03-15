@@ -24,7 +24,7 @@ python3 amd_runner.py hbm rccl       # or two AMD benchmarks
 python3 nvidia_runner.py all          # run everything
 ```
 
-Results are written to `Outputs/` (markdown summaries, plots, logs) and `results/` (structured CSV).
+Results are written to `results/<sku>_<timestamp>/` -- see [Output](#output) for the directory layout.
 
 ## Prerequisites
 
