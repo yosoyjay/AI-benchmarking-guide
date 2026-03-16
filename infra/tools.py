@@ -3,12 +3,16 @@ import json
 import logging
 import os
 import subprocess
+import threading
 import warnings
-from typing import Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any, Callable
 
 from prettytable import PrettyTable
 
 logger = logging.getLogger(__name__)
+
+_log_lock = threading.Lock()
 
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 curr = _PROJECT_ROOT
@@ -100,8 +104,9 @@ def write_log(message: str, filename: str | None = None) -> None:
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_entry = f"[{timestamp}]\n {message}\n"
 
-    with open(target, "a") as file:
-        file.write(log_entry)
+    with _log_lock:
+        with open(target, "a") as file:
+            file.write(log_entry)
 
 
 def check_error(results: subprocess.CompletedProcess[bytes]) -> str:
@@ -269,3 +274,30 @@ def summarize_babelstream(
     print(table)
     export_markdown(title, description, table)
     return table
+
+
+def run_parallel_builds(
+    builds: list[tuple[str, Callable[[], None]]],
+    max_workers: int | None = None,
+) -> list[str]:
+    """Run build callables in parallel and return names of any that failed.
+
+    Each element of *builds* is ``(name, callable)``.  *max_workers* caps the
+    thread count (``None`` means one thread per build).
+    """
+    failed: list[str] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_name = {}
+        for name, build_fn in builds:
+            logger.info("Submitting %s...", name)
+            future_to_name[executor.submit(build_fn)] = name
+
+        for future in as_completed(future_to_name):
+            name = future_to_name[future]
+            try:
+                future.result()
+                logger.info("  %s OK", name)
+            except Exception:
+                logger.exception("  %s FAILED", name)
+                failed.append(name)
+    return failed
