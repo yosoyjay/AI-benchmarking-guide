@@ -83,7 +83,7 @@ def run(
 
     logger.info("Running Multichase...")
     multichase_bin = os.path.join(work_dir, "multichase", "multichase")
-    script_path = os.path.join(work_dir, "benchmarks", "nvidia", "run_multichase.sh")
+    script_path = os.path.join(os.path.dirname(__file__), "run_multichase.sh")
     cmd = [script_path, multichase_bin, "-s", str(stride), "-m", str(memory), "-n", str(iterations)]
     if ctx is not None:
         result = capture_cmd(cmd, ctx=ctx)
