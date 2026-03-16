@@ -1,10 +1,14 @@
-"""Tests for nvidia_runner -- dispatch table, BENCHMARKS dict, _make_ctx, subcommands."""
+"""Tests for nvidia_runner -- dispatch table, BENCHMARKS dict, _make_ctx, subcommands, _install."""
 
+import argparse
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 from infra.capture import RunContext
-from nvidia_runner import BENCHMARKS, _ensure_subcommand, _make_ctx
+from nvidia_runner import BENCHMARKS, _ensure_subcommand, _install, _make_ctx
 
 
 class TestBenchmarksDict:
@@ -82,3 +86,86 @@ class TestEnsureSubcommand:
     def test_no_args(self) -> None:
         argv = ["nvidia_runner.py"]
         assert _ensure_subcommand(argv) == ["nvidia_runner.py"]
+
+    def test_install_with_jobs(self) -> None:
+        argv = ["nvidia_runner.py", "install", "--jobs", "2"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "install", "--jobs", "2"]
+
+    def test_install_with_j_short(self) -> None:
+        argv = ["nvidia_runner.py", "install", "-j", "4"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "install", "-j", "4"]
+
+
+class TestInstall:
+    """Test _install() calls all builds and handles failures."""
+
+    _BUILD_PATCHES = [
+        "benchmarks.nvidia.hbm_bandwidth._build",
+        "benchmarks.nvidia.cpu_stream._build",
+        "benchmarks.nvidia.nv_bandwidth._build",
+        "benchmarks.nvidia.nccl_bandwidth._build",
+        "benchmarks.nvidia.multichase._build",
+        "benchmarks.nvidia.gemm_cublas_lt._build",
+    ]
+
+    @patch("nvidia_runner._detect_gpu_name", return_value="NVIDIA H200")
+    @patch("nvidia_runner.tools.load_benchmark_config", return_value={"datatype": "fp8e4m3"})
+    def test_all_builds_called(self, mock_config, mock_gpu) -> None:
+        mocks = {}
+        patches = []
+        for target in self._BUILD_PATCHES:
+            p = patch(target)
+            m = p.start()
+            patches.append(p)
+            mocks[target] = m
+
+        try:
+            args = argparse.Namespace(force=False, jobs=None)
+            _install(args)
+            for target, m in mocks.items():
+                assert m.called, f"{target} was not called"
+        finally:
+            for p in patches:
+                p.stop()
+
+    @patch("nvidia_runner._detect_gpu_name", return_value="NVIDIA H200")
+    @patch("nvidia_runner.tools.load_benchmark_config", return_value={"datatype": "fp8e4m3"})
+    def test_collects_failures(self, mock_config, mock_gpu) -> None:
+        patches = []
+        for target in self._BUILD_PATCHES:
+            p = patch(target)
+            p.start()
+            patches.append(p)
+
+        # Make one build fail
+        fail_patch = patch(
+            "benchmarks.nvidia.hbm_bandwidth._build",
+            side_effect=RuntimeError("boom"),
+        )
+        fail_patch.start()
+        patches.append(fail_patch)
+
+        try:
+            args = argparse.Namespace(force=False, jobs=None)
+            with pytest.raises(SystemExit) as exc_info:
+                _install(args)
+            assert exc_info.value.code == 1
+        finally:
+            for p in patches:
+                p.stop()
+
+    @patch("nvidia_runner._detect_gpu_name", return_value="NVIDIA H200")
+    @patch("nvidia_runner.tools.load_benchmark_config", return_value={"datatype": "fp8e4m3"})
+    def test_jobs_flag_serial(self, mock_config, mock_gpu) -> None:
+        patches = []
+        for target in self._BUILD_PATCHES:
+            p = patch(target)
+            p.start()
+            patches.append(p)
+
+        try:
+            args = argparse.Namespace(force=False, jobs=1)
+            _install(args)  # should not raise
+        finally:
+            for p in patches:
+                p.stop()

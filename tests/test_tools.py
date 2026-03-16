@@ -1,11 +1,17 @@
-"""Tests for BabelStream helpers and config loading in infra/tools.py."""
+"""Tests for BabelStream helpers, config loading, and run_parallel_builds in infra/tools.py."""
 
 import json
 import logging
 
 import pytest
 
-from infra.tools import BABELSTREAM_OPS, load_benchmark_config, parse_babelstream_output, summarize_babelstream
+from infra.tools import (
+    BABELSTREAM_OPS,
+    load_benchmark_config,
+    parse_babelstream_output,
+    run_parallel_builds,
+    summarize_babelstream,
+)
 
 # Realistic BabelStream output (hip-stream / cuda-stream)
 SAMPLE_BABELSTREAM_OUTPUT = """\
@@ -177,3 +183,41 @@ class TestLoadBenchmarkConfig:
         cfg.write_text(json.dumps({"Custom": {"anything": "works"}}))
         section = load_benchmark_config(str(cfg), "Custom")
         assert section["anything"] == "works"
+
+
+# ---------------------------------------------------------------------------
+# run_parallel_builds
+# ---------------------------------------------------------------------------
+
+
+class TestRunParallelBuilds:
+    def test_all_succeed(self) -> None:
+        calls = []
+        builds = [
+            ("A", lambda: calls.append("A")),
+            ("B", lambda: calls.append("B")),
+        ]
+        failed = run_parallel_builds(builds)
+        assert failed == []
+        assert set(calls) == {"A", "B"}
+
+    def test_collects_failures(self) -> None:
+        def _boom():
+            raise RuntimeError("bang")
+
+        builds = [
+            ("good", lambda: None),
+            ("bad", _boom),
+        ]
+        failed = run_parallel_builds(builds)
+        assert failed == ["bad"]
+
+    def test_max_workers(self) -> None:
+        calls = []
+        builds = [
+            ("A", lambda: calls.append("A")),
+            ("B", lambda: calls.append("B")),
+        ]
+        failed = run_parallel_builds(builds, max_workers=1)
+        assert failed == []
+        assert set(calls) == {"A", "B"}

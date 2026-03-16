@@ -1,9 +1,13 @@
-"""Tests for amd_runner -- dispatch table, BENCHMARKS dict, _make_ctx, subcommands."""
+"""Tests for amd_runner -- dispatch table, BENCHMARKS dict, _make_ctx, subcommands, _install."""
 
+import argparse
 from datetime import datetime
 from pathlib import Path
+from unittest.mock import patch
 
-from amd_runner import BENCHMARKS, _ensure_subcommand, _make_ctx
+import pytest
+
+from amd_runner import BENCHMARKS, _ensure_subcommand, _install, _make_ctx
 from infra.capture import RunContext
 
 
@@ -65,3 +69,34 @@ class TestEnsureSubcommand:
     def test_no_args(self) -> None:
         argv = ["amd_runner.py"]
         assert _ensure_subcommand(argv) == ["amd_runner.py"]
+
+    def test_install_with_jobs(self) -> None:
+        argv = ["amd_runner.py", "install", "--jobs", "2"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "install", "--jobs", "2"]
+
+    def test_install_with_j_short(self) -> None:
+        argv = ["amd_runner.py", "install", "-j", "4"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "install", "-j", "4"]
+
+
+class TestInstall:
+    """Test _install() calls all builds and handles failures."""
+
+    @patch("amd_runner._build_single_docker_image")
+    @patch("benchmarks.amd.transfer_bench._build")
+    @patch("benchmarks.amd.hbm_bandwidth._build")
+    def test_all_builds_called(self, mock_hbm, mock_tb, mock_docker) -> None:
+        args = argparse.Namespace(force=False, jobs=None)
+        _install(args)
+        assert mock_hbm.called
+        assert mock_tb.called
+        assert mock_docker.call_count == 2  # two docker images
+
+    @patch("amd_runner._build_single_docker_image")
+    @patch("benchmarks.amd.transfer_bench._build")
+    @patch("benchmarks.amd.hbm_bandwidth._build", side_effect=RuntimeError("boom"))
+    def test_collects_failures(self, mock_hbm, mock_tb, mock_docker) -> None:
+        args = argparse.Namespace(force=False, jobs=None)
+        with pytest.raises(SystemExit) as exc_info:
+            _install(args)
+        assert exc_info.value.code == 1
