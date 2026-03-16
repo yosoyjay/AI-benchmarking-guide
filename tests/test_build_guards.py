@@ -73,22 +73,37 @@ class TestCpuStreamBuildGuard:
 
 
 class TestNcclBandwidthBuildGuard:
+    @patch("benchmarks.nvidia.nccl_bandwidth._system_nccl_available", return_value=True)
     @patch("benchmarks.nvidia.nccl_bandwidth.os.environ", {"LD_LIBRARY_PATH": ""})
     @patch("benchmarks.nvidia.nccl_bandwidth.tools.run_cmd")
     @patch("benchmarks.nvidia.nccl_bandwidth.os.path.isdir", return_value=True)
     @patch("benchmarks.nvidia.nccl_bandwidth.os.path.isfile", return_value=True)
-    def test_skips_build_when_binary_exists(self, mock_isfile, mock_isdir, mock_run_cmd) -> None:
+    def test_skips_build_when_binary_exists(self, mock_isfile, mock_isdir, mock_run_cmd, mock_sys_nccl) -> None:
+        tests_dir, env = nv_nccl._build("/work", None)
+        mock_isfile.assert_called_once_with("/work/nccl-tests/build/all_reduce_perf")
+        mock_run_cmd.assert_not_called()
+        assert tests_dir == "/work/nccl-tests"
+
+    @patch("benchmarks.nvidia.nccl_bandwidth._system_nccl_available", return_value=False)
+    @patch("benchmarks.nvidia.nccl_bandwidth.os.environ", {"LD_LIBRARY_PATH": ""})
+    @patch("benchmarks.nvidia.nccl_bandwidth.tools.run_cmd")
+    @patch("benchmarks.nvidia.nccl_bandwidth.os.path.isdir", return_value=True)
+    @patch("benchmarks.nvidia.nccl_bandwidth.os.path.isfile", return_value=True)
+    def test_skips_build_when_binary_exists_source_nccl(
+        self, mock_isfile, mock_isdir, mock_run_cmd, mock_sys_nccl
+    ) -> None:
         tests_dir, env = nv_nccl._build("/work", None)
         mock_isfile.assert_called_once_with("/work/nccl-tests/build/all_reduce_perf")
         mock_run_cmd.assert_not_called()
         assert tests_dir == "/work/nccl-tests"
         assert "NCCL_HOME" in env
 
+    @patch("benchmarks.nvidia.nccl_bandwidth._system_nccl_available", return_value=True)
     @patch("benchmarks.nvidia.nccl_bandwidth.os.environ", {"LD_LIBRARY_PATH": ""})
     @patch("benchmarks.nvidia.nccl_bandwidth.tools.run_cmd")
     @patch("benchmarks.nvidia.nccl_bandwidth.os.path.isdir", return_value=True)
     @patch("benchmarks.nvidia.nccl_bandwidth.os.path.isfile", return_value=False)
-    def test_builds_when_binary_missing(self, mock_isfile, mock_isdir, mock_run_cmd) -> None:
+    def test_builds_when_binary_missing(self, mock_isfile, mock_isdir, mock_run_cmd, mock_sys_nccl) -> None:
         tests_dir, env = nv_nccl._build("/work", None)
         assert mock_run_cmd.call_count >= 1
         assert tests_dir == "/work/nccl-tests"

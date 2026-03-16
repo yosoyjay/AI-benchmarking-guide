@@ -2,6 +2,7 @@
 
 import logging
 import os
+import subprocess
 
 from prettytable import PrettyTable
 
@@ -59,32 +60,55 @@ def _get_gpu_count() -> int:
     return len(lines) if lines else 8
 
 
-def _build(work_dir: str, env: dict[str, str] | None) -> tuple[str, dict[str, str]]:
-    """Clone and build NCCL and nccl-tests."""
-    nccl_dir = os.path.join(work_dir, "nccl")
-    if not os.path.isdir(nccl_dir):
-        logger.info("Building NCCL Library...")
-        tools.run_cmd(["git", "clone", _NCCL_REPO, "nccl"], cwd=work_dir)
-        tools.run_cmd(["git", "checkout", _NCCL_COMMIT], cwd=nccl_dir)
-        tools.run_cmd(["make", "-j", "src.build"], cwd=nccl_dir)
+def _system_nccl_available() -> bool:
+    """Return True if a system NCCL install provides headers and shared lib."""
+    has_header = os.path.isfile("/usr/include/nccl.h") or os.path.isfile("/usr/local/include/nccl.h")
+    if not has_header:
+        return False
+    result = subprocess.run(
+        ["ldconfig", "-p"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    return result.returncode == 0 and b"libnccl.so" in result.stdout
 
-    nccl_home = os.path.join(nccl_dir, "build")
-    ld_path = f"{os.path.join(nccl_dir, 'build', 'lib')}:{os.environ.get('LD_LIBRARY_PATH', '')}"
-    env = {**os.environ, "NCCL_HOME": nccl_home, "LD_LIBRARY_PATH": ld_path}
+
+def _build(work_dir: str, env: dict[str, str] | None) -> tuple[str, dict[str, str]]:
+    """Clone and build nccl-tests, using system NCCL when available.
+
+    Falls back to building NCCL from source only if the system packages
+    (libnccl-dev / libnccl2) are not installed.
+    """
+    use_system = _system_nccl_available()
+
+    if use_system:
+        logger.info("Using system NCCL (skipping source build)")
+        build_env = dict(os.environ)
+    else:
+        nccl_dir = os.path.join(work_dir, "nccl")
+        if not os.path.isdir(nccl_dir):
+            logger.info("System NCCL not found, building from source...")
+            tools.run_cmd(["git", "clone", _NCCL_REPO, "nccl"], cwd=work_dir)
+            tools.run_cmd(["git", "checkout", _NCCL_COMMIT], cwd=nccl_dir)
+            tools.run_cmd(["make", "-j", "src.build"], cwd=nccl_dir)
+
+        nccl_home = os.path.join(nccl_dir, "build")
+        ld_path = f"{os.path.join(nccl_dir, 'build', 'lib')}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+        build_env = {**os.environ, "NCCL_HOME": nccl_home, "LD_LIBRARY_PATH": ld_path}
 
     tests_dir = os.path.join(work_dir, "nccl-tests")
     binary = os.path.join(tests_dir, "build", "all_reduce_perf")
     if os.path.isfile(binary):
-        return tests_dir, env
+        return tests_dir, build_env
 
     if not os.path.isdir(tests_dir):
         tools.run_cmd(["git", "clone", _NCCL_TESTS_REPO, "nccl-tests"], cwd=work_dir)
         tools.run_cmd(["git", "checkout", _NCCL_TESTS_COMMIT], cwd=tests_dir)
 
     logger.info("Building NCCL Test...")
-    tools.run_cmd(["make"], env=env, cwd=tests_dir)
+    tools.run_cmd(["make"], env=build_env, cwd=tests_dir)
 
-    return tests_dir, env
+    return tests_dir, build_env
 
 
 def run(
