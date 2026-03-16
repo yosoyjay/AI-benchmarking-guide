@@ -50,6 +50,14 @@ dev = [
     "ruff",
 ]
 
+[dependency-groups]
+dev = [
+    "black",
+    "pre-commit",
+    "pytest",
+    "ruff",
+]
+
 [tool.setuptools]
 packages = []
 
