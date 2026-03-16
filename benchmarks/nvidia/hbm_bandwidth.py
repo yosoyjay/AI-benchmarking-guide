@@ -35,25 +35,28 @@ def _get_cuda_arch(machine_name: str) -> str:
 def _build(work_dir: str, machine_name: str) -> str:
     """Clone and build BabelStream for CUDA."""
     repo_dir = os.path.join(work_dir, "BabelStream")
+    build_dir = os.path.join(repo_dir, "build")
+    binary = os.path.join(build_dir, "cuda-stream")
+    if os.path.isfile(binary):
+        return build_dir
+
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _BABELSTREAM_REPO, "BabelStream"], cwd=work_dir)
         tools.run_cmd(["git", "checkout", _BABELSTREAM_COMMIT], cwd=repo_dir)
 
-    build_dir = os.path.join(repo_dir, "build")
-    if not os.path.isdir(build_dir):
-        os.mkdir(build_dir)
-        arch = _get_cuda_arch(machine_name)
-        tools.run_cmd(
-            [
-                "cmake",
-                "../",
-                "-DMODEL=cuda",
-                f"-DCUDA_ARCH={arch}",
-                "-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
-            ],
-            cwd=build_dir,
-        )
-        tools.run_cmd(["make"], cwd=build_dir)
+    os.makedirs(build_dir, exist_ok=True)
+    arch = _get_cuda_arch(machine_name)
+    tools.run_cmd(
+        [
+            "cmake",
+            "../",
+            "-DMODEL=cuda",
+            f"-DCUDA_ARCH={arch}",
+            "-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+        ],
+        cwd=build_dir,
+    )
+    tools.run_cmd(["make"], cwd=build_dir)
 
     return build_dir
 

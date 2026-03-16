@@ -103,6 +103,10 @@ def _build_tables(text: str, test_names: list[str] | None = None) -> list[tuple[
 def _build(work_dir: str) -> None:
     """Clone and build nvbandwidth."""
     repo_dir = os.path.join(work_dir, "nvbandwidth")
+    binary = os.path.join(repo_dir, "nvbandwidth")
+    if os.path.isfile(binary):
+        return
+
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _NVBANDWIDTH_REPO, "nvbandwidth"], cwd=work_dir)
         tools.run_cmd(["git", "checkout", _NVBANDWIDTH_COMMIT], cwd=repo_dir)

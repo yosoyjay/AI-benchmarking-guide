@@ -73,11 +73,16 @@ def _build(work_dir: str, env: dict[str, str] | None) -> tuple[str, dict[str, st
     env = {**os.environ, "NCCL_HOME": nccl_home, "LD_LIBRARY_PATH": ld_path}
 
     tests_dir = os.path.join(work_dir, "nccl-tests")
+    binary = os.path.join(tests_dir, "build", "all_reduce_perf")
+    if os.path.isfile(binary):
+        return tests_dir, env
+
     if not os.path.isdir(tests_dir):
-        logger.info("Building NCCL Test...")
         tools.run_cmd(["git", "clone", _NCCL_TESTS_REPO, "nccl-tests"], cwd=work_dir)
         tools.run_cmd(["git", "checkout", _NCCL_TESTS_COMMIT], cwd=tests_dir)
-        tools.run_cmd(["make"], env=env, cwd=tests_dir)
+
+    logger.info("Building NCCL Test...")
+    tools.run_cmd(["make"], env=env, cwd=tests_dir)
 
     return tests_dir, env
 

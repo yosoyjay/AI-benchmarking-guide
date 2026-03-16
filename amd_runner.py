@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -186,19 +187,80 @@ BENCHMARKS = {
 }
 
 
-def main() -> None:
-    logging.basicConfig(level=logging.INFO)
+_DOCKER_IMAGES = {
+    "ai-bench/amd-hipblas:latest": "amd-hipblas.Dockerfile",
+    "ai-bench/amd-rccl:latest": "amd-rccl.Dockerfile",
+}
 
-    parser = argparse.ArgumentParser(description="AMD GPU Benchmark Suite")
-    parser.add_argument(
-        "benchmarks",
-        nargs="+",
-        choices=[*BENCHMARKS, "all"],
-        type=str.lower,
-        help="Benchmarks to run",
-    )
-    args = parser.parse_args()
 
+def _build_docker_images(force: bool) -> list[str]:
+    """Build AMD Docker images. Returns list of image tags that failed."""
+    dockerfiles_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dockerfiles")
+    failed = []
+    for tag, dockerfile in _DOCKER_IMAGES.items():
+        if not force:
+            result = subprocess.run(
+                ["docker", "image", "inspect", tag],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if result.returncode == 0:
+                logger.info("  %s already exists, skipping (use --force to rebuild)", tag)
+                continue
+
+        logger.info("  Building %s ...", tag)
+        result = subprocess.run(
+            ["docker", "build", "--progress=plain", "-f", dockerfile, "-t", tag, "."],
+            cwd=dockerfiles_dir,
+        )
+        if result.returncode != 0:
+            logger.error("  %s build FAILED", tag)
+            failed.append(tag)
+        else:
+            logger.info("  %s OK", tag)
+    return failed
+
+
+def _install(args: argparse.Namespace) -> None:
+    """Pre-build all benchmark binaries and Docker images."""
+    work_dir = os.getcwd()
+
+    if args.force:
+        build_dirs = [
+            os.path.join(work_dir, "BabelStream"),
+            os.path.join(work_dir, "TransferBench"),
+        ]
+        for d in build_dirs:
+            if os.path.isdir(d):
+                logger.info("Removing %s", d)
+                shutil.rmtree(d)
+
+    builds = [
+        ("HBM Bandwidth", lambda: HBM._build(work_dir)),
+        ("TransferBench", lambda: TB._build(work_dir)),
+    ]
+
+    failed = []
+    for name, build_fn in builds:
+        try:
+            logger.info("Building %s...", name)
+            build_fn()
+            logger.info("  %s OK", name)
+        except Exception:
+            logger.exception("  %s FAILED", name)
+            failed.append(name)
+
+    logger.info("Building Docker images...")
+    failed.extend(_build_docker_images(args.force))
+
+    if failed:
+        logger.error("Failed builds: %s", ", ".join(failed))
+        sys.exit(1)
+    logger.info("All builds succeeded")
+
+
+def _run(args: argparse.Namespace) -> None:
+    """Run selected benchmarks."""
     current = os.getcwd()
 
     # Structured output pipeline
@@ -242,6 +304,52 @@ def main() -> None:
     if failed:
         logger.error("Failed benchmarks: %s", ", ".join(failed))
         sys.exit(1)
+
+
+def _ensure_subcommand(argv: list[str]) -> list[str]:
+    """Inject 'run' when the first positional arg is not a known subcommand.
+
+    Preserves backwards compatibility so ``python amd_runner.py hbm`` still works.
+    """
+    subcommands = {"run", "install"}
+    if len(argv) > 1 and argv[1] not in subcommands and argv[1] not in ("-h", "--help"):
+        return [argv[0], "run"] + argv[1:]
+    return argv
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO)
+
+    patched_argv = _ensure_subcommand(sys.argv)
+
+    parser = argparse.ArgumentParser(description="AMD GPU Benchmark Suite")
+    subparsers = parser.add_subparsers(dest="command")
+
+    run_parser = subparsers.add_parser("run", help="Run benchmarks")
+    run_parser.add_argument(
+        "benchmarks",
+        nargs="+",
+        choices=[*BENCHMARKS, "all"],
+        type=str.lower,
+        help="Benchmarks to run",
+    )
+
+    install_parser = subparsers.add_parser("install", help="Pre-build benchmark binaries and Docker images")
+    install_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Remove build directories and rebuild from scratch",
+    )
+
+    args = parser.parse_args(patched_argv[1:])
+    if args.command is None:
+        parser.print_help()
+        sys.exit(1)
+
+    if args.command == "install":
+        _install(args)
+    else:
+        _run(args)
 
 
 if __name__ == "__main__":

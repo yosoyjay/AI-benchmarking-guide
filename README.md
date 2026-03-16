@@ -19,6 +19,12 @@ git clone https://github.com/Azure/AI-benchmarking-guide.git
 cd AI-benchmarking-guide
 uv venv && source .venv/bin/activate
 ./install-dependencies.sh
+
+# Pre-build benchmark binaries (recommended)
+python3 nvidia_runner.py install          # NVIDIA
+python3 amd_runner.py install             # AMD (includes Docker images)
+
+# Run benchmarks
 python3 nvidia_runner.py gemm nccl   # run two NVIDIA benchmarks
 python3 amd_runner.py hbm rccl       # or two AMD benchmarks
 python3 nvidia_runner.py all          # run everything
@@ -88,6 +94,22 @@ huggingface-cli login
 ```
 
 ## Usage
+
+### Pre-building binaries
+
+The `install` subcommand compiles all benchmark binaries (and Docker images for AMD) ahead of time, so benchmark runs don't include compilation overhead. Build failures are surfaced immediately.
+
+```bash
+python3 nvidia_runner.py install          # build NVIDIA benchmark binaries
+python3 amd_runner.py install             # build AMD binaries + Docker images
+```
+
+Use `--force` to remove existing build directories and rebuild from scratch:
+
+```bash
+python3 nvidia_runner.py install --force
+python3 amd_runner.py install --force
+```
 
 ### NVIDIA
 

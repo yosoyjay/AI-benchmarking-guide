@@ -1,9 +1,9 @@
-"""Tests for amd_runner -- dispatch table, BENCHMARKS dict, _make_ctx."""
+"""Tests for amd_runner -- dispatch table, BENCHMARKS dict, _make_ctx, subcommands."""
 
 from datetime import datetime
 from pathlib import Path
 
-from amd_runner import BENCHMARKS, _make_ctx
+from amd_runner import BENCHMARKS, _ensure_subcommand, _make_ctx
 from infra.capture import RunContext
 
 
@@ -35,3 +35,33 @@ class TestMakeCtx:
         assert ctx.run_dir.name == "rccl_bandwidth"
         assert (ctx.run_dir / "raw").is_dir()
         assert (ctx.run_dir / "processed").is_dir()
+
+
+class TestEnsureSubcommand:
+    def test_injects_run_for_benchmark_name(self) -> None:
+        argv = ["amd_runner.py", "hbm"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "run", "hbm"]
+
+    def test_injects_run_for_multiple_benchmarks(self) -> None:
+        argv = ["amd_runner.py", "hbm", "rccl"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "run", "hbm", "rccl"]
+
+    def test_preserves_run_subcommand(self) -> None:
+        argv = ["amd_runner.py", "run", "hbm"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "run", "hbm"]
+
+    def test_preserves_install_subcommand(self) -> None:
+        argv = ["amd_runner.py", "install"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "install"]
+
+    def test_preserves_install_with_force(self) -> None:
+        argv = ["amd_runner.py", "install", "--force"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "install", "--force"]
+
+    def test_preserves_help_flag(self) -> None:
+        argv = ["amd_runner.py", "-h"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py", "-h"]
+
+    def test_no_args(self) -> None:
+        argv = ["amd_runner.py"]
+        assert _ensure_subcommand(argv) == ["amd_runner.py"]

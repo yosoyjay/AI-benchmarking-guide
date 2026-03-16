@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 import subprocess
 
 from prettytable import PrettyTable
@@ -57,6 +58,11 @@ def _build_table(rows: list[dict[str, str]]) -> PrettyTable:
 
 def _build(work_dir: str, datatype: str) -> str:
     """Clone superbenchmark repo, checkout correct branch, build binary."""
+    bindir = os.path.join(work_dir, "bin")
+    binary = os.path.join(bindir, "cublaslt_gemm")
+    if os.path.isfile(binary):
+        return bindir
+
     repo_dir = os.path.join(work_dir, "superbenchmark")
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _SUPERBENCHMARK_REPO, "superbenchmark"], cwd=work_dir)
@@ -74,13 +80,9 @@ def _build(work_dir: str, datatype: str) -> str:
     tools.run_cmd(["cmake", "-S", "./"], cwd=build_path)
     tools.run_cmd(["make"], cwd=build_path)
 
-    bindir = os.path.join(work_dir, "bin")
     os.makedirs(bindir, exist_ok=True)
-    subprocess.run(
-        ["mv", os.path.join(build_path, "cublaslt_gemm"), bindir],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    src = os.path.join(build_path, "cublaslt_gemm")
+    shutil.copy2(src, bindir)
     return bindir
 
 

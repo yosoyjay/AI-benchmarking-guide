@@ -21,18 +21,21 @@ _BABELSTREAM_COMMIT = "2411a9ac6832eb6562d81c81d016c53a66355eed"
 def _build(work_dir: str) -> str:
     """Clone and build BabelStream for OpenMP."""
     repo_dir = os.path.join(work_dir, "CPUStream")
+    build_dir = os.path.join(repo_dir, "build")
+    binary = os.path.join(build_dir, "omp-stream")
+    if os.path.isfile(binary):
+        return build_dir
+
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _BABELSTREAM_REPO, "CPUStream"], cwd=work_dir)
         tools.run_cmd(["git", "checkout", _BABELSTREAM_COMMIT], cwd=repo_dir)
 
-    build_dir = os.path.join(repo_dir, "build")
-    if not os.path.isdir(build_dir):
-        os.mkdir(build_dir)
-        tools.run_cmd(
-            ["cmake", "-DMODEL=omp", "../"],
-            cwd=build_dir,
-        )
-        tools.run_cmd(["make"], cwd=build_dir)
+    os.makedirs(build_dir, exist_ok=True)
+    tools.run_cmd(
+        ["cmake", "-DMODEL=omp", "../"],
+        cwd=build_dir,
+    )
+    tools.run_cmd(["make"], cwd=build_dir)
 
     return build_dir
 

@@ -20,23 +20,28 @@ _BABELSTREAM_REPO = "https://github.com/gitaumark/BabelStream"
 def _build(work_dir: str) -> None:
     """Clone and build BabelStream for HIP."""
     repo_dir = os.path.join(work_dir, "BabelStream")
+    binary = os.path.join(repo_dir, "build", "hip-stream")
+    if os.path.isfile(binary):
+        return
+
     if not os.path.isdir(repo_dir):
         tools.run_cmd(
             ["git", "clone", _BABELSTREAM_REPO, "BabelStream"],
             cwd=work_dir,
         )
-        tools.run_cmd(
-            [
-                "cmake",
-                "-Bbuild",
-                "-H.",
-                "-DMODEL=hip",
-                "-DRELEASE_FLAGS=-O3",
-                "-DCMAKE_CXX_COMPILER=hipcc",
-            ],
-            cwd=repo_dir,
-        )
-        tools.run_cmd(["cmake", "--build", "build"], cwd=repo_dir)
+
+    tools.run_cmd(
+        [
+            "cmake",
+            "-Bbuild",
+            "-H.",
+            "-DMODEL=hip",
+            "-DRELEASE_FLAGS=-O3",
+            "-DCMAKE_CXX_COMPILER=hipcc",
+        ],
+        cwd=repo_dir,
+    )
+    tools.run_cmd(["cmake", "--build", "build"], cwd=repo_dir)
 
 
 def run(

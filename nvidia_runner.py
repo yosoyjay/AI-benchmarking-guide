@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -212,19 +213,56 @@ BENCHMARKS = {
 }
 
 
-def main() -> None:
-    logging.basicConfig(level=logging.INFO)
+def _install(args: argparse.Namespace) -> None:
+    """Pre-build all benchmark binaries."""
+    work_dir = os.getcwd()
+    machine_name = _detect_gpu_name()
+    config_datatype = tools.load_benchmark_config("config.json", "GEMMCublasLt").get("datatype", "fp8e4m3")
 
-    parser = argparse.ArgumentParser(description="NVIDIA GPU Benchmark Suite")
-    parser.add_argument(
-        "benchmarks",
-        nargs="+",
-        choices=[*BENCHMARKS, "all"],
-        type=str.lower,
-        help="Benchmarks to run",
-    )
-    args = parser.parse_args()
+    build_dirs: list[str] = []
+    if args.force:
+        build_dirs = [
+            os.path.join(work_dir, "BabelStream"),
+            os.path.join(work_dir, "CPUStream"),
+            os.path.join(work_dir, "nvbandwidth"),
+            os.path.join(work_dir, "nccl"),
+            os.path.join(work_dir, "nccl-tests"),
+            os.path.join(work_dir, "multichase"),
+            os.path.join(work_dir, "superbenchmark"),
+            os.path.join(work_dir, "bin"),
+        ]
+        for d in build_dirs:
+            if os.path.isdir(d):
+                logger.info("Removing %s", d)
+                shutil.rmtree(d)
 
+    builds = [
+        ("HBM Bandwidth", lambda: HBM._build(work_dir, machine_name)),
+        ("CPU Stream", lambda: CPU._build(work_dir)),
+        ("NV Bandwidth", lambda: NV._build(work_dir)),
+        ("NCCL Bandwidth", lambda: NCCL._build(work_dir, None)),
+        ("Multichase", lambda: Multichase._build(work_dir)),
+        ("GEMM CuBLASLt", lambda: gemm._build(work_dir, config_datatype)),
+    ]
+
+    failed = []
+    for name, build_fn in builds:
+        try:
+            logger.info("Building %s...", name)
+            build_fn()
+            logger.info("  %s OK", name)
+        except Exception:
+            logger.exception("  %s FAILED", name)
+            failed.append(name)
+
+    if failed:
+        logger.error("Failed builds: %s", ", ".join(failed))
+        sys.exit(1)
+    logger.info("All builds succeeded")
+
+
+def _run(args: argparse.Namespace) -> None:
+    """Run selected benchmarks."""
     current = os.getcwd()
     machine_name = _detect_gpu_name()
 
@@ -270,6 +308,52 @@ def main() -> None:
     if failed:
         logger.error("Failed benchmarks: %s", ", ".join(failed))
         sys.exit(1)
+
+
+def _ensure_subcommand(argv: list[str]) -> list[str]:
+    """Inject 'run' when the first positional arg is not a known subcommand.
+
+    Preserves backwards compatibility so ``python nvidia_runner.py hbm`` still works.
+    """
+    subcommands = {"run", "install"}
+    if len(argv) > 1 and argv[1] not in subcommands and argv[1] not in ("-h", "--help"):
+        return [argv[0], "run"] + argv[1:]
+    return argv
+
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO)
+
+    patched_argv = _ensure_subcommand(sys.argv)
+
+    parser = argparse.ArgumentParser(description="NVIDIA GPU Benchmark Suite")
+    subparsers = parser.add_subparsers(dest="command")
+
+    run_parser = subparsers.add_parser("run", help="Run benchmarks")
+    run_parser.add_argument(
+        "benchmarks",
+        nargs="+",
+        choices=[*BENCHMARKS, "all"],
+        type=str.lower,
+        help="Benchmarks to run",
+    )
+
+    install_parser = subparsers.add_parser("install", help="Pre-build benchmark binaries")
+    install_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Remove build directories and rebuild from scratch",
+    )
+
+    args = parser.parse_args(patched_argv[1:])
+    if args.command is None:
+        parser.print_help()
+        sys.exit(1)
+
+    if args.command == "install":
+        _install(args)
+    else:
+        _run(args)
 
 
 if __name__ == "__main__":

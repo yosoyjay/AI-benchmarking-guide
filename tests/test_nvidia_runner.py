@@ -1,10 +1,10 @@
-"""Tests for nvidia_runner -- dispatch table, BENCHMARKS dict, _make_ctx."""
+"""Tests for nvidia_runner -- dispatch table, BENCHMARKS dict, _make_ctx, subcommands."""
 
 from datetime import datetime
 from pathlib import Path
 
 from infra.capture import RunContext
-from nvidia_runner import BENCHMARKS, _make_ctx
+from nvidia_runner import BENCHMARKS, _ensure_subcommand, _make_ctx
 
 
 class TestBenchmarksDict:
@@ -48,3 +48,37 @@ class TestMakeCtx:
         assert ctx.run_dir.name == "nccl_bandwidth"
         assert (ctx.run_dir / "raw").is_dir()
         assert (ctx.run_dir / "processed").is_dir()
+
+
+class TestEnsureSubcommand:
+    def test_injects_run_for_benchmark_name(self) -> None:
+        argv = ["nvidia_runner.py", "hbm"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "run", "hbm"]
+
+    def test_injects_run_for_multiple_benchmarks(self) -> None:
+        argv = ["nvidia_runner.py", "hbm", "nccl", "gemm"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "run", "hbm", "nccl", "gemm"]
+
+    def test_preserves_run_subcommand(self) -> None:
+        argv = ["nvidia_runner.py", "run", "hbm"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "run", "hbm"]
+
+    def test_preserves_install_subcommand(self) -> None:
+        argv = ["nvidia_runner.py", "install"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "install"]
+
+    def test_preserves_install_with_force(self) -> None:
+        argv = ["nvidia_runner.py", "install", "--force"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "install", "--force"]
+
+    def test_preserves_help_flag(self) -> None:
+        argv = ["nvidia_runner.py", "-h"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "-h"]
+
+    def test_preserves_help_long(self) -> None:
+        argv = ["nvidia_runner.py", "--help"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py", "--help"]
+
+    def test_no_args(self) -> None:
+        argv = ["nvidia_runner.py"]
+        assert _ensure_subcommand(argv) == ["nvidia_runner.py"]

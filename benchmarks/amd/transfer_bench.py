@@ -53,20 +53,25 @@ def _build_table(parsed: dict[str, str]) -> PrettyTable:
 def _build(work_dir: str) -> None:
     """Clone and build TransferBench."""
     repo_dir = os.path.join(work_dir, "TransferBench")
+    binary = os.path.join(repo_dir, "build", "TransferBench")
+    if os.path.isfile(binary):
+        return
+
     if not os.path.isdir(repo_dir):
-        logger.info("Building TransferBench...")
         tools.run_cmd(
             ["git", "clone", _TRANSFERBENCH_REPO, "TransferBench"],
             cwd=work_dir,
         )
-        build_dir = os.path.join(repo_dir, "build")
-        os.makedirs(build_dir, exist_ok=True)
-        tools.run_cmd(
-            ["cmake", ".."],
-            cwd=build_dir,
-            env={"CXX": "/opt/rocm/bin/hipcc"},
-        )
-        tools.run_cmd(["make"], cwd=build_dir)
+
+    logger.info("Building TransferBench...")
+    build_dir = os.path.join(repo_dir, "build")
+    os.makedirs(build_dir, exist_ok=True)
+    tools.run_cmd(
+        ["cmake", ".."],
+        cwd=build_dir,
+        env={"CXX": "/opt/rocm/bin/hipcc"},
+    )
+    tools.run_cmd(["make"], cwd=build_dir)
 
 
 def run(

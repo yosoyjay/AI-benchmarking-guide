@@ -59,10 +59,15 @@ def parse_multichase_output(text: str) -> tuple[list[str], list[dict[str, str | 
 def _build(work_dir: str) -> None:
     """Clone and build multichase."""
     repo_dir = os.path.join(work_dir, "multichase")
+    binary = os.path.join(repo_dir, "multichase")
+    if os.path.isfile(binary):
+        return
+
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _MULTICHASE_REPO, "multichase"], cwd=work_dir)
         tools.run_cmd(["git", "checkout", _MULTICHASE_COMMIT], cwd=repo_dir)
-        tools.run_cmd(["make"], cwd=repo_dir)
+
+    tools.run_cmd(["make"], cwd=repo_dir)
 
 
 def run(
