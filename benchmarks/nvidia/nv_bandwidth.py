@@ -110,8 +110,9 @@ def _build(work_dir: str) -> None:
     if not os.path.isdir(repo_dir):
         tools.run_cmd(["git", "clone", _NVBANDWIDTH_REPO, "nvbandwidth"], cwd=work_dir)
         tools.run_cmd(["git", "checkout", _NVBANDWIDTH_COMMIT], cwd=repo_dir)
+        nvcc = tools.find_nvcc()
         tools.run_cmd(
-            ["sed", "-i", r"2i\set(CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)", "CMakeLists.txt"],
+            ["sed", "-i", f"2i\\set(CMAKE_CUDA_COMPILER {nvcc})", "CMakeLists.txt"],
             cwd=repo_dir,
         )
 

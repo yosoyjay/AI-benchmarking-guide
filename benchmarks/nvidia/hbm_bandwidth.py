@@ -19,11 +19,16 @@ _BABELSTREAM_COMMIT = "1a1a729517df6c44bfbfe6d0db36a24fe8dc6726"
 
 
 def _get_cuda_arch(machine_name: str) -> str:
-    """Map machine name to CUDA architecture string."""
-    if "A100" in machine_name:
+    """Map machine name to CUDA architecture string.
+
+    Supports CUDA 12 (sm_80, sm_90) and CUDA 13 (sm_100+) GPUs.
+    """
+    name = machine_name.upper()
+    if "A100" in name:
         return "sm_80"
-    if "GB200" in machine_name:
+    if "GB200" in name or "B200" in name or "B100" in name:
         return "sm_100"
+    # H100, H200, and other Hopper GPUs
     return "sm_90"
 
 
@@ -46,13 +51,14 @@ def _build(work_dir: str, machine_name: str) -> str:
 
     os.makedirs(build_dir, exist_ok=True)
     arch = _get_cuda_arch(machine_name)
+    nvcc = tools.find_nvcc()
     tools.run_cmd(
         [
             "cmake",
             "../",
             "-DMODEL=cuda",
             f"-DCUDA_ARCH={arch}",
-            "-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            f"-DCMAKE_CUDA_COMPILER={nvcc}",
         ],
         cwd=build_dir,
     )

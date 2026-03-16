@@ -10,6 +10,12 @@ class TestGetCudaArch:
     def test_gb200(self) -> None:
         assert hbm_bandwidth._get_cuda_arch("NVIDIA GB200") == "sm_100"
 
+    def test_b200(self) -> None:
+        assert hbm_bandwidth._get_cuda_arch("NVIDIA B200") == "sm_100"
+
+    def test_b100(self) -> None:
+        assert hbm_bandwidth._get_cuda_arch("NVIDIA B100") == "sm_100"
+
     def test_h100_default(self) -> None:
         assert hbm_bandwidth._get_cuda_arch("NVIDIA H100 80GB") == "sm_90"
 

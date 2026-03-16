@@ -1,12 +1,14 @@
-"""Tests for BabelStream helpers, config loading, and run_parallel_builds in infra/tools.py."""
+"""Tests for BabelStream helpers, config loading, run_parallel_builds, and find_nvcc in infra/tools.py."""
 
 import json
 import logging
+from unittest.mock import patch
 
 import pytest
 
 from infra.tools import (
     BABELSTREAM_OPS,
+    find_nvcc,
     load_benchmark_config,
     parse_babelstream_output,
     run_parallel_builds,
@@ -221,3 +223,33 @@ class TestRunParallelBuilds:
         failed = run_parallel_builds(builds, max_workers=1)
         assert failed == []
         assert set(calls) == {"A", "B"}
+
+
+# ---------------------------------------------------------------------------
+# find_nvcc
+# ---------------------------------------------------------------------------
+
+
+class TestFindNvcc:
+    @patch("infra.tools.os.environ", {"CUDA_HOME": "/opt/cuda"})
+    @patch("infra.tools.os.path.isfile", return_value=True)
+    def test_uses_cuda_home(self, mock_isfile) -> None:
+        assert find_nvcc() == "/opt/cuda/bin/nvcc"
+
+    @patch("infra.tools.os.environ", {})
+    @patch("infra.tools.os.path.isfile", return_value=True)
+    def test_falls_back_to_usr_local_cuda(self, mock_isfile) -> None:
+        result = find_nvcc()
+        assert result == "/usr/local/cuda/bin/nvcc"
+
+    @patch("infra.tools.shutil.which", return_value="/some/path/nvcc")
+    @patch("infra.tools.os.environ", {})
+    @patch("infra.tools.os.path.isfile", return_value=False)
+    def test_falls_back_to_which(self, mock_isfile, mock_which) -> None:
+        assert find_nvcc() == "/some/path/nvcc"
+
+    @patch("infra.tools.shutil.which", return_value=None)
+    @patch("infra.tools.os.environ", {})
+    @patch("infra.tools.os.path.isfile", return_value=False)
+    def test_returns_nvcc_as_last_resort(self, mock_isfile, mock_which) -> None:
+        assert find_nvcc() == "nvcc"

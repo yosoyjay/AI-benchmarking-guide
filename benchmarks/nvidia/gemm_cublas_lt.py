@@ -77,7 +77,8 @@ def _build(work_dir: str, datatype: str) -> str:
         "micro_benchmarks",
         "cublaslt_gemm",
     )
-    tools.run_cmd(["cmake", "-S", "./"], cwd=build_path)
+    nvcc = tools.find_nvcc()
+    tools.run_cmd(["cmake", "-S", "./", f"-DCMAKE_CUDA_COMPILER={nvcc}"], cwd=build_path)
     tools.run_cmd(["make"], cwd=build_path)
 
     os.makedirs(bindir, exist_ok=True)

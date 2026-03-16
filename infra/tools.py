@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import os
+import shutil
 import subprocess
 import threading
 import warnings
@@ -19,6 +20,23 @@ curr = _PROJECT_ROOT
 
 _log_path: str | None = None
 _summary_path: str | None = None
+
+
+def find_nvcc() -> str:
+    """Locate the nvcc compiler, preferring CUDA_HOME then common paths.
+
+    Returns the full path to nvcc or ``"nvcc"`` as a fallback (relying on PATH).
+    """
+    cuda_home = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH", "")
+    if cuda_home:
+        candidate = os.path.join(cuda_home, "bin", "nvcc")
+        if os.path.isfile(candidate):
+            return candidate
+    for prefix in ["/usr/local/cuda", "/usr/local/cuda-13", "/usr/local/cuda-12"]:
+        candidate = os.path.join(prefix, "bin", "nvcc")
+        if os.path.isfile(candidate):
+            return candidate
+    return shutil.which("nvcc") or "nvcc"
 
 
 def set_log_path(path: str) -> None:
