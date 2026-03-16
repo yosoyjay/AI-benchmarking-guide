@@ -193,32 +193,26 @@ _DOCKER_IMAGES = {
 }
 
 
-def _build_docker_images(force: bool) -> list[str]:
-    """Build AMD Docker images. Returns list of image tags that failed."""
+def _build_single_docker_image(tag: str, dockerfile: str, force: bool) -> None:
+    """Build a single AMD Docker image. Raises on failure."""
     dockerfiles_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dockerfiles")
-    failed = []
-    for tag, dockerfile in _DOCKER_IMAGES.items():
-        if not force:
-            result = subprocess.run(
-                ["docker", "image", "inspect", tag],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            if result.returncode == 0:
-                logger.info("  %s already exists, skipping (use --force to rebuild)", tag)
-                continue
-
-        logger.info("  Building %s ...", tag)
+    if not force:
         result = subprocess.run(
-            ["docker", "build", "--progress=plain", "-f", dockerfile, "-t", tag, "."],
-            cwd=dockerfiles_dir,
+            ["docker", "image", "inspect", tag],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
-        if result.returncode != 0:
-            logger.error("  %s build FAILED", tag)
-            failed.append(tag)
-        else:
-            logger.info("  %s OK", tag)
-    return failed
+        if result.returncode == 0:
+            logger.info("  %s already exists, skipping (use --force to rebuild)", tag)
+            return
+
+    logger.info("  Building %s ...", tag)
+    result = subprocess.run(
+        ["docker", "build", "--progress=plain", "-f", dockerfile, "-t", tag, "."],
+        cwd=dockerfiles_dir,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Docker build failed for {tag}")
 
 
 def _install(args: argparse.Namespace) -> None:
@@ -239,19 +233,15 @@ def _install(args: argparse.Namespace) -> None:
         ("HBM Bandwidth", lambda: HBM._build(work_dir)),
         ("TransferBench", lambda: TB._build(work_dir)),
     ]
+    for tag, dockerfile in _DOCKER_IMAGES.items():
+        builds.append(
+            (
+                f"Docker {tag}",
+                lambda t=tag, d=dockerfile: _build_single_docker_image(t, d, args.force),
+            )
+        )
 
-    failed = []
-    for name, build_fn in builds:
-        try:
-            logger.info("Building %s...", name)
-            build_fn()
-            logger.info("  %s OK", name)
-        except Exception:
-            logger.exception("  %s FAILED", name)
-            failed.append(name)
-
-    logger.info("Building Docker images...")
-    failed.extend(_build_docker_images(args.force))
+    failed = tools.run_parallel_builds(builds, args.jobs)
 
     if failed:
         logger.error("Failed builds: %s", ", ".join(failed))
@@ -339,6 +329,13 @@ def main() -> None:
         "--force",
         action="store_true",
         help="Remove build directories and rebuild from scratch",
+    )
+    install_parser.add_argument(
+        "--jobs",
+        "-j",
+        type=int,
+        default=None,
+        help="Maximum number of parallel build jobs (default: unlimited)",
     )
 
     args = parser.parse_args(patched_argv[1:])

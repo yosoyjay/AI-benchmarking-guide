@@ -245,15 +245,7 @@ def _install(args: argparse.Namespace) -> None:
         ("GEMM CuBLASLt", lambda: gemm._build(work_dir, config_datatype)),
     ]
 
-    failed = []
-    for name, build_fn in builds:
-        try:
-            logger.info("Building %s...", name)
-            build_fn()
-            logger.info("  %s OK", name)
-        except Exception:
-            logger.exception("  %s FAILED", name)
-            failed.append(name)
+    failed = tools.run_parallel_builds(builds, args.jobs)
 
     if failed:
         logger.error("Failed builds: %s", ", ".join(failed))
@@ -343,6 +335,13 @@ def main() -> None:
         "--force",
         action="store_true",
         help="Remove build directories and rebuild from scratch",
+    )
+    install_parser.add_argument(
+        "--jobs",
+        "-j",
+        type=int,
+        default=None,
+        help="Maximum number of parallel build jobs (default: unlimited)",
     )
 
     args = parser.parse_args(patched_argv[1:])
