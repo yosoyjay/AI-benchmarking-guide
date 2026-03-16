@@ -1,12 +1,12 @@
-import json
 import argparse
+import json
+
 import nemo_run as run
 import torch
-from nemo import lightning as nl
 from nemo.collections import llm
 from nemo.collections.llm.recipes.precision.mixed_precision import (
+    bf16_with_fp8_mixed,
     fp16_with_fp8_mixed,
-    bf16_with_fp8_mixed
 )
 
 
@@ -25,8 +25,7 @@ def load_config(args):
         return data["LLAMA3Pretraining"]["model"][args.machine_name][args.model_size]
     except KeyError as e:
         raise KeyError(
-            f"config.json missing key {e} in path "
-            f"LLAMA3Pretraining.model.{args.machine_name}.{args.model_size}"
+            f"config.json missing key {e} in path " f"LLAMA3Pretraining.model.{args.machine_name}.{args.model_size}"
         )
 
 
@@ -78,9 +77,9 @@ def configure_recipe(args, cfg, nodes=1):
     recipe.trainer.devices = gpus_per_node
 
     if model_size == "3b":
-        recipe.trainer.max_time = "0:02:00:00" # stop after 2 hours
+        recipe.trainer.max_time = "0:02:00:00"  # stop after 2 hours
     else:
-        recipe.trainer.max_time = "0:04:00:00" # stop after 4 hours
+        recipe.trainer.max_time = "0:04:00:00"  # stop after 4 hours
     return recipe
 
 
@@ -93,11 +92,7 @@ def local_executor_torchrun(args, nodes=1):
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
     }
     devices = 8 if args.machine_name == "H200" else 4
-    return run.LocalExecutor(
-        ntasks_per_node=devices,
-        launcher="torchrun",
-        env_vars=env_vars
-    )
+    return run.LocalExecutor(ntasks_per_node=devices, launcher="torchrun", env_vars=env_vars)
 
 
 def run_pretraining():
@@ -105,10 +100,7 @@ def run_pretraining():
     cfg = load_config(args)
     recipe = configure_recipe(args, cfg)
 
-    executor = local_executor_torchrun(
-        args,
-        nodes=recipe.trainer.num_nodes
-    )
+    executor = local_executor_torchrun(args, nodes=recipe.trainer.num_nodes)
 
     run.run(recipe, executor=executor, name=f"llama3_{args.model_size}_pretraining")
 
