@@ -106,6 +106,7 @@ class TestInstall:
         "benchmarks.nvidia.nccl_bandwidth._build",
         "benchmarks.nvidia.multichase._build",
         "benchmarks.nvidia.gemm_cublas_lt._build",
+        "benchmarks.fio.build_docker_image",
     ]
 
     @patch("nvidia_runner._detect_gpu_name", return_value="NVIDIA H200")

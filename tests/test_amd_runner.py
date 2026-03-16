@@ -83,19 +83,22 @@ class TestInstall:
     """Test _install() calls all builds and handles failures."""
 
     @patch("amd_runner._build_single_docker_image")
+    @patch("benchmarks.fio.build_docker_image")
     @patch("benchmarks.amd.transfer_bench._build")
     @patch("benchmarks.amd.hbm_bandwidth._build")
-    def test_all_builds_called(self, mock_hbm, mock_tb, mock_docker) -> None:
+    def test_all_builds_called(self, mock_hbm, mock_tb, mock_fio, mock_docker) -> None:
         args = argparse.Namespace(force=False, jobs=None)
         _install(args)
         assert mock_hbm.called
         assert mock_tb.called
+        assert mock_fio.called
         assert mock_docker.call_count == 2  # two docker images
 
     @patch("amd_runner._build_single_docker_image")
+    @patch("benchmarks.fio.build_docker_image")
     @patch("benchmarks.amd.transfer_bench._build")
     @patch("benchmarks.amd.hbm_bandwidth._build", side_effect=RuntimeError("boom"))
-    def test_collects_failures(self, mock_hbm, mock_tb, mock_docker) -> None:
+    def test_collects_failures(self, mock_hbm, mock_tb, mock_fio, mock_docker) -> None:
         args = argparse.Namespace(force=False, jobs=None)
         with pytest.raises(SystemExit) as exc_info:
             _install(args)

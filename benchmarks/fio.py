@@ -13,6 +13,8 @@ from infra.capture import RunContext, capture_cmd
 
 logger = logging.getLogger(__name__)
 
+_FIO_IMAGE = "ai-bench/fio:latest"
+
 _DEFAULT_FIO_TESTS = [
     ["read", "1M"],
     ["read", "512k"],
@@ -54,6 +56,62 @@ def _build_table(rows: list[tuple[str, str, str]]) -> PrettyTable:
 
 
 # ---------------------------------------------------------------------------
+# Container helpers
+# ---------------------------------------------------------------------------
+
+
+def _docker_available() -> bool:
+    """Return True if Docker is available and the FIO image exists."""
+    try:
+        result = subprocess.run(
+            ["docker", "image", "inspect", _FIO_IMAGE],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+def _run_fio_docker(cmd: list[str], fio_dir: str) -> subprocess.CompletedProcess:
+    """Run fio inside a Docker container with the test directory mounted."""
+    docker_cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{fio_dir}:{fio_dir}",
+        "--privileged",
+        _FIO_IMAGE,
+    ] + cmd[
+        1:
+    ]  # skip the leading "fio" -- the container entrypoint is fio
+    return subprocess.run(docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def build_docker_image(force: bool = False) -> None:
+    """Build the FIO Docker image if it doesn't already exist."""
+    dockerfiles_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dockerfiles")
+    if not force:
+        result = subprocess.run(
+            ["docker", "image", "inspect", _FIO_IMAGE],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode == 0:
+            logger.info("  %s already exists, skipping (use --force to rebuild)", _FIO_IMAGE)
+            return
+
+    logger.info("  Building %s ...", _FIO_IMAGE)
+    result = subprocess.run(
+        ["docker", "build", "--progress=plain", "-f", "fio.Dockerfile", "-t", _FIO_IMAGE, "."],
+        cwd=dockerfiles_dir,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"Docker build failed for {_FIO_IMAGE}")
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -61,7 +119,11 @@ def _build_table(rows: list[tuple[str, str, str]]) -> PrettyTable:
 def run(
     work_dir: str, machine_name: str, config_path: str = "config.json", ctx: RunContext | None = None
 ) -> list[tuple[str, str, str]] | None:
-    """Run FIO storage benchmarks, parse and report results."""
+    """Run FIO storage benchmarks, parse and report results.
+
+    Uses a Docker container when the FIO image is available, otherwise
+    falls back to the host ``fio`` binary.
+    """
     config = tools.load_benchmark_config(config_path, "FIO")
     fio_tests = [tuple(t) for t in config.get("tests", _DEFAULT_FIO_TESTS)]
     runtime = config.get("runtime", 300)
@@ -71,12 +133,17 @@ def run(
     ioengine = config.get("ioengine", "libaio")
     direct = config.get("direct", 1)
 
+    use_docker = _docker_available()
+    if use_docker:
+        logger.info("Running FIO Tests via Docker (%s)...", _FIO_IMAGE)
+    else:
+        logger.info("Running FIO Tests (host binary)...")
+
     if ctx is not None:
         fio_dir = str(ctx.run_dir)
     else:
         fio_dir = tempfile.mkdtemp(prefix="fio_")
 
-    logger.info("Running FIO Tests...")
     rows = []
     for rw, bs in fio_tests:
         cmd = [
@@ -94,7 +161,9 @@ def run(
             "--gtod_reduce=1",
             f"--size={size}",
         ]
-        if ctx is not None:
+        if use_docker:
+            result = _run_fio_docker(cmd, fio_dir)
+        elif ctx is not None:
             result = capture_cmd(cmd, ctx=ctx, suffix=f"_{rw}_{bs}")
         else:
             result = subprocess.run(

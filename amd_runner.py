@@ -232,6 +232,7 @@ def _install(args: argparse.Namespace) -> None:
     builds = [
         ("HBM Bandwidth", lambda: HBM._build(work_dir)),
         ("TransferBench", lambda: TB._build(work_dir)),
+        ("FIO Docker", lambda: FIO.build_docker_image(args.force)),
     ]
     for tag, dockerfile in _DOCKER_IMAGES.items():
         builds.append(

@@ -243,6 +243,7 @@ def _install(args: argparse.Namespace) -> None:
         ("NCCL Bandwidth", lambda: NCCL._build(work_dir, None)),
         ("Multichase", lambda: Multichase._build(work_dir)),
         ("GEMM CuBLASLt", lambda: gemm._build(work_dir, config_datatype)),
+        ("FIO Docker", lambda: FIO.build_docker_image(args.force)),
     ]
 
     failed = tools.run_parallel_builds(builds, args.jobs)

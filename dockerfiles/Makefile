@@ -1,8 +1,8 @@
 IMAGE_PREFIX ?= ai-bench
 
-.PHONY: all hipblas rccl
+.PHONY: all hipblas rccl fio
 
-all: hipblas rccl
+all: hipblas rccl fio
 
 hipblas:
 	docker build --progress=plain \
@@ -13,3 +13,8 @@ rccl:
 	docker build --progress=plain \
 		-f amd-rccl.Dockerfile \
 		-t $(IMAGE_PREFIX)/amd-rccl:latest .
+
+fio:
+	docker build --progress=plain \
+		-f fio.Dockerfile \
+		-t $(IMAGE_PREFIX)/fio:latest .
